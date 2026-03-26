@@ -1,0 +1,98 @@
+"""Configuration models for AirTrain."""
+
+from __future__ import annotations
+
+import platform
+import uuid
+from enum import Enum
+from pathlib import Path
+from typing import Optional
+
+from pydantic import BaseModel, Field
+
+
+class PeerStatus(str, Enum):
+    IDLE = "idle"
+    TRAINING = "training"
+    SYNCING = "syncing"
+    PAUSED = "paused"
+    DISCONNECTED = "disconnected"
+
+
+class PeerRole(str, Enum):
+    COORDINATOR = "coordinator"
+    WORKER = "worker"
+
+
+class PeerInfo(BaseModel):
+    """Information about a peer in the training swarm."""
+
+    peer_id: str = Field(default_factory=lambda: uuid.uuid4().hex[:12])
+    hostname: str = Field(default_factory=platform.node)
+    ip_address: str = ""
+    port: int = 7471
+    chip: str = ""
+    memory_gb: float = 0.0
+    tflops: float = 0.0
+    status: PeerStatus = PeerStatus.IDLE
+    role: PeerRole = PeerRole.WORKER
+    current_step: int = 0
+    compute_hours: float = 0.0
+
+
+class DiLoCoConfig(BaseModel):
+    """Configuration for the DiLoCo training algorithm."""
+
+    inner_steps: int = 500
+    inner_lr: float = 3e-4
+    inner_optimizer: str = "adamw"
+    inner_weight_decay: float = 0.1
+    outer_lr: float = 0.7
+    outer_momentum: float = 0.9
+    use_nesterov: bool = True
+    gradient_compression: bool = True
+    compress_to_fp16: bool = True
+
+
+class TrainingConfig(BaseModel):
+    """Top-level training configuration."""
+
+    model_name: str = "gpt2-small"
+    dataset_path: str = ""
+    batch_size: int = 8
+    max_steps: int = 100_000
+    seq_length: int = 512
+    checkpoint_dir: str = "./checkpoints"
+    checkpoint_every: int = 1000
+    log_every: int = 10
+    diloco: DiLoCoConfig = Field(default_factory=DiLoCoConfig)
+    dashboard_port: int = 8471
+    enable_dashboard: bool = False
+    seed: int = 42
+
+
+class CheckpointMeta(BaseModel):
+    """Metadata stored alongside a checkpoint."""
+
+    version: str = "0.1.0"
+    model_name: str = ""
+    global_step: int = 0
+    inner_step: int = 0
+    loss: float = 0.0
+    total_compute_hours: float = 0.0
+    contributors: list[str] = Field(default_factory=list)
+    config: Optional[TrainingConfig] = None
+    created_at: str = ""
+    description: str = ""
+
+
+class NetworkConfig(BaseModel):
+    """Network configuration for peer communication."""
+
+    listen_host: str = "0.0.0.0"
+    listen_port: int = 7471
+    heartbeat_interval: float = 5.0
+    heartbeat_timeout: float = 15.0
+    relay_server_url: Optional[str] = None
+    use_mdns: bool = True
+    mdns_service_type: str = "_airtrain._tcp.local."
