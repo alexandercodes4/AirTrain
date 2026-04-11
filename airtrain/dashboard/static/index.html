@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AirTrain Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root {
+    --bg: #0f1117;
+    --card: #1a1d27;
+    --border: #2a2d3a;
+    --text: #e4e4e7;
+    --text-dim: #71717a;
+    --blue: #3b82f6;
+    --green: #22c55e;
+    --yellow: #eab308;
+    --red: #ef4444;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+}
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 32px;
+    border-bottom: 1px solid var(--border);
+}
+.header h1 {
+    font-size: 20px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.status-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: pulse 2s infinite;
+}
+.status-dot.idle { background: var(--yellow); }
+.status-dot.error { background: var(--red); }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+.header-info { font-size: 13px; color: var(--text-dim); }
+.grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    padding: 24px 32px;
+}
+.card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+}
+.card-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+}
+.card-value {
+    font-size: 28px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+.chart-container {
+    padding: 0 32px 24px;
+}
+.chart-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+}
+.chart-card h2 { font-size: 15px; font-weight: 600; margin-bottom: 16px; }
+canvas { width: 100% !important; }
+.section { padding: 0 32px 24px; }
+.section h2 { font-size: 15px; font-weight: 600; margin-bottom: 12px; }
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--card);
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+}
+th, td {
+    text-align: left;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+}
+th {
+    color: var(--text-dim);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 11px;
+}
+.badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+}
+.badge-green { background: #16a34a22; color: var(--green); }
+.badge-blue { background: #3b82f622; color: var(--blue); }
+.badge-yellow { background: #eab30822; color: var(--yellow); }
+</style>
+</head>
+<body>
+<div class="header">
+    <h1>
+        <span class="status-dot" id="statusDot"></span>
+        AirTrain Dashboard
+    </h1>
+    <div class="header-info">
+        <span id="modelName">—</span> &middot; v0.1.0
+    </div>
+</div>
+
+<div class="grid">
+    <div class="card">
+        <div class="card-label">Global Step</div>
+        <div class="card-value" id="globalStep">0</div>
+    </div>
+    <div class="card">
+        <div class="card-label">Loss</div>
+        <div class="card-value" id="currentLoss">—</div>
+    </div>
+    <div class="card">
+        <div class="card-label">Throughput</div>
+        <div class="card-value" id="throughput">— <small style="font-size:14px;color:var(--text-dim)">tok/s</small></div>
+    </div>
+    <div class="card">
+        <div class="card-label">Connected Peers</div>
+        <div class="card-value" id="peerCount">0</div>
+    </div>
+</div>
+
+<div class="chart-container">
+    <div class="chart-card">
+        <h2>Training Loss</h2>
+        <canvas id="lossChart" height="80"></canvas>
+    </div>
+</div>
+
+<div class="section">
+    <h2>Connected Peers</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Hostname</th>
+                <th>Chip</th>
+                <th>Memory</th>
+                <th>TFLOPS</th>
+                <th>Status</th>
+                <th>Step</th>
+            </tr>
+        </thead>
+        <tbody id="peersTable">
+            <tr><td colspan="6" style="color:var(--text-dim);text-align:center">No peers connected</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="section">
+    <h2>Checkpoints</h2>
+    <table>
+        <thead>
+            <tr><th>Step</th><th>Loss</th><th>Time</th><th>Path</th></tr>
+        </thead>
+        <tbody id="checkpointsTable">
+            <tr><td colspan="4" style="color:var(--text-dim);text-align:center">No checkpoints yet</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+const ctx = document.getElementById('lossChart').getContext('2d');
+const chart = new Chart(ctx, {
+    type: 'line',
+    data: { labels: [], datasets: [{ label: 'Loss', data: [], borderColor: '#3b82f6', backgroundColor: '#3b82f622', fill: true, tension: 0.3, pointRadius: 0, borderWidth: 2 }] },
+    options: {
+        responsive: true,
+        animation: { duration: 0 },
+        scales: {
+            x: { display: true, grid: { color: '#2a2d3a' }, ticks: { color: '#71717a', maxTicksLimit: 10 } },
+            y: { display: true, grid: { color: '#2a2d3a' }, ticks: { color: '#71717a' } }
+        },
+        plugins: { legend: { display: false } }
+    }
+});
+
+// SSE for real-time metrics
+let evtSource;
+function connectSSE() {
+    evtSource = new EventSource('/api/metrics');
+    evtSource.onmessage = (e) => {
+        const d = JSON.parse(e.data);
+        chart.data.labels.push(d.step);
+        chart.data.datasets[0].data.push(d.loss);
+        if (chart.data.labels.length > 200) {
+            chart.data.labels.shift();
+            chart.data.datasets[0].data.shift();
+        }
+        chart.update();
+        document.getElementById('globalStep').textContent = d.step.toLocaleString();
+        document.getElementById('currentLoss').textContent = d.loss.toFixed(4);
+        document.getElementById('throughput').innerHTML = `${Math.round(d.throughput)} <small style="font-size:14px;color:var(--text-dim)">tok/s</small>`;
+        document.getElementById('peerCount').textContent = d.peer_count;
+    };
+    evtSource.onerror = () => { evtSource.close(); setTimeout(connectSSE, 3000); };
+}
+connectSSE();
+
+// Poll status and peers
+async function pollStatus() {
+    try {
+        const r = await fetch('/api/status');
+        const s = await r.json();
+        document.getElementById('modelName').textContent = s.model_name || '—';
+        const dot = document.getElementById('statusDot');
+        dot.className = 'status-dot' + (s.status === 'training' ? '' : s.status === 'idle' ? ' idle' : ' error');
+    } catch(e) {}
+}
+
+async function pollPeers() {
+    try {
+        const r = await fetch('/api/peers');
+        const peers = await r.json();
+        const tbody = document.getElementById('peersTable');
+        if (!peers.length) { tbody.innerHTML = '<tr><td colspan="6" style="color:var(--text-dim);text-align:center">No peers connected</td></tr>'; return; }
+        tbody.innerHTML = peers.map(p => `<tr><td>${p.hostname||'—'}</td><td>${p.chip||'—'}</td><td>${p.memory_gb||0} GB</td><td>${p.tflops||0}</td><td><span class="badge badge-green">${p.status||'active'}</span></td><td>${p.current_step||0}</td></tr>`).join('');
+    } catch(e) {}
+}
+
+async function pollCheckpoints() {
+    try {
+        const r = await fetch('/api/checkpoints');
+        const cps = await r.json();
+        const tbody = document.getElementById('checkpointsTable');
+        if (!cps.length) { tbody.innerHTML = '<tr><td colspan="4" style="color:var(--text-dim);text-align:center">No checkpoints yet</td></tr>'; return; }
+        tbody.innerHTML = cps.map(c => `<tr><td>${c.step}</td><td>${c.loss.toFixed(4)}</td><td>${new Date(c.timestamp*1000).toLocaleTimeString()}</td><td style="color:var(--text-dim)">${c.path}</td></tr>`).join('');
+    } catch(e) {}
+}
+
+setInterval(pollStatus, 5000);
+setInterval(pollPeers, 5000);
+setInterval(pollCheckpoints, 10000);
+pollStatus(); pollPeers(); pollCheckpoints();
+</script>
+</body>
+</html>
