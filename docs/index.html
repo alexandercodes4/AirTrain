@@ -1,0 +1,1687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AirTrain — Distributed ML Training Across Apple Silicon Macs</title>
+  <meta name="description" content="Train ML models for free by pooling MacBooks over WiFi. 500x less network traffic than traditional distributed training. Open source.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:site" content="@AlexanderCodes_">
+  <meta name="twitter:widgets:theme" content="dark">
+  <meta name="twitter:widgets:border-color" content="#16161c">
+  <link rel="icon" type="image/png" href="ChatGPT_Image_Apr_20__2026__02_16_01_PM-removebg-preview.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    /* ============================================================
+       DESIGN TOKENS
+       ============================================================ */
+    :root {
+      --bg-base:      #08080a;
+      --bg-surface:   #0f0f13;
+      --bg-elevated:  #16161c;
+      --bg-overlay:   #1e1e26;
+
+      --silver-bright: #e4e4ec;
+      --silver-mid:    #a1a1b0;
+      --silver-dim:    #6b6b78;
+      --silver-subtle: #3a3a44;
+
+      --glass-bg:      rgba(17, 25, 40, 0.55);
+      --glass-border:  rgba(255, 255, 255, 0.08);
+      --glass-blur:    16px;
+
+      --grad-metallic: linear-gradient(135deg, #aaa 5%, #fff 15%, #ccc 30%, #ddd 50%, #ccc 70%, #fff 85%, #999 95%);
+
+      --ease-expo:   cubic-bezier(0.16, 1, 0.3, 1);
+      --ease-smooth: cubic-bezier(0.45, 0, 0.55, 1);
+
+      --font-sans: 'Inter', -apple-system, system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', 'SF Mono', ui-monospace, monospace;
+
+      --max-w: 1120px;
+    }
+
+    /* ============================================================
+       RESET & BASE
+       ============================================================ */
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html {
+      scroll-behavior: smooth;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      font-size: 16px;
+      line-height: 1.6;
+      color: var(--silver-mid);
+      background: var(--bg-base);
+      overflow-x: hidden;
+    }
+
+    a { color: inherit; text-decoration: none; }
+    img { display: block; max-width: 100%; }
+    code, pre { font-family: var(--font-mono); }
+
+    /* ============================================================
+       UTILITY
+       ============================================================ */
+    .container {
+      width: 100%;
+      max-width: var(--max-w);
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    .section-label {
+      font-size: 0.75rem;
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--silver-dim);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .section-label::before {
+      content: '';
+      width: 24px;
+      height: 1px;
+      background: var(--silver-subtle);
+    }
+
+    .section-heading {
+      font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 600;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      color: var(--silver-bright);
+      margin-bottom: 16px;
+    }
+
+    .section-sub {
+      font-size: 1.125rem;
+      color: var(--silver-dim);
+      max-width: 560px;
+      line-height: 1.55;
+    }
+
+    .glass {
+      background: var(--glass-bg);
+      backdrop-filter: blur(var(--glass-blur)) saturate(125%);
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(125%);
+      border: 1px solid var(--glass-border);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 8px 32px rgba(0,0,0,0.35);
+    }
+
+    .glass-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--silver-bright);
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.1);
+      cursor: pointer;
+      transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+    }
+    .glass-btn:hover {
+      background: rgba(255,255,255,0.1);
+      border-color: rgba(255,255,255,0.18);
+      transform: translateY(-1px);
+    }
+    .glass-btn svg { width: 16px; height: 16px; fill: currentColor; }
+
+    .glass-btn--primary {
+      background: rgba(255,255,255,0.1);
+      border-color: rgba(255,255,255,0.15);
+    }
+    .glass-btn--primary:hover {
+      background: rgba(255,255,255,0.16);
+      border-color: rgba(255,255,255,0.25);
+    }
+
+    /* ============================================================
+       SCROLL ANIMATIONS (no-motion-first)
+       ============================================================ */
+    [data-animate] { opacity: 1; transform: none; }
+
+    @media (prefers-reduced-motion: no-preference) {
+      [data-animate] {
+        opacity: 0;
+        transform: translateY(24px);
+        transition: opacity 0.6s var(--ease-expo), transform 0.6s var(--ease-expo);
+      }
+      [data-animate].visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      [data-stagger].visible > [data-animate] { opacity: 1; transform: translateY(0); }
+      [data-stagger].visible > [data-animate]:nth-child(1) { transition-delay: 0ms; }
+      [data-stagger].visible > [data-animate]:nth-child(2) { transition-delay: 80ms; }
+      [data-stagger].visible > [data-animate]:nth-child(3) { transition-delay: 160ms; }
+      [data-stagger].visible > [data-animate]:nth-child(4) { transition-delay: 240ms; }
+      [data-stagger].visible > [data-animate]:nth-child(5) { transition-delay: 320ms; }
+      [data-stagger].visible > [data-animate]:nth-child(6) { transition-delay: 400ms; }
+    }
+
+    /* ============================================================
+       NAVBAR
+       ============================================================ */
+    /* Static top navbar (visible at top of page) */
+    .navbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 1000;
+      background: transparent;
+      transition: opacity 0.3s ease;
+    }
+    .navbar.hidden { opacity: 0; pointer-events: none; }
+
+    /* Floating pill navbar (pops in after scrolling past top navbar) */
+    .navbar-float {
+      position: fixed;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-12px) scale(0.96);
+      max-width: 820px;
+      width: calc(100% - 32px);
+      padding: 8px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 1001;
+      background: rgba(10, 10, 14, 0.82);
+      backdrop-filter: blur(20px) saturate(130%);
+      -webkit-backdrop-filter: blur(20px) saturate(130%);
+      border-radius: 9999px;
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.35s var(--ease-expo), transform 0.35s var(--ease-expo);
+    }
+    .navbar-float.visible {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateX(-50%) translateY(0) scale(1);
+    }
+
+    .navbar__logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 600;
+      font-size: 1rem;
+      letter-spacing: -0.02em;
+      color: var(--silver-bright);
+    }
+    .navbar__logo img {
+      width: 28px;
+      height: 28px;
+    }
+
+    .navbar__links {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+      list-style: none;
+    }
+    .navbar__links a {
+      font-size: 0.8125rem;
+      font-weight: 450;
+      color: var(--silver-dim);
+      transition: color 0.2s ease;
+    }
+    .navbar__links a:hover { color: var(--silver-bright); }
+
+    .navbar__actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .navbar__icon-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      color: var(--silver-dim);
+      border: 1px solid transparent;
+      background: transparent;
+      cursor: pointer;
+      transition: color 0.2s, background 0.2s, border-color 0.2s;
+    }
+    .navbar__icon-btn:hover {
+      color: var(--silver-bright);
+      background: rgba(255,255,255,0.06);
+      border-color: rgba(255,255,255,0.08);
+    }
+    .navbar__icon-btn svg { width: 18px; height: 18px; fill: currentColor; }
+
+    .navbar-float .navbar__logo span { display: none; }
+    .navbar-float .navbar__logo { gap: 0; }
+
+    @media (max-width: 640px) {
+      .navbar__links { display: none; }
+      .navbar-float { max-width: calc(100% - 24px); }
+    }
+
+    /* ============================================================
+       HERO
+       ============================================================ */
+    .hero {
+      padding: 160px 0 96px;
+      text-align: center;
+      position: relative;
+    }
+
+    .hero__glow {
+      position: absolute;
+      top: 40%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 600px;
+      height: 400px;
+      background: radial-gradient(ellipse, rgba(180,180,200,0.04) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .hero__logo {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 32px;
+      position: relative;
+    }
+
+    .hero__heading {
+      font-size: clamp(2.5rem, 7vw, 4.25rem);
+      font-weight: 700;
+      letter-spacing: -0.04em;
+      line-height: 1.05;
+      max-width: 720px;
+      margin: 0 auto 20px;
+      background: var(--grad-metallic);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero__sub {
+      font-size: 1.125rem;
+      color: var(--silver-dim);
+      max-width: 480px;
+      margin: 0 auto 40px;
+      line-height: 1.55;
+    }
+
+    .hero__actions {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    /* ============================================================
+       DEMO (tweet embed)
+       ============================================================ */
+    .demo {
+      padding: 64px 0 96px;
+    }
+    .demo__inner {
+      text-align: center;
+    }
+    .demo__embed-wrap {
+      max-width: 550px;
+      margin: 32px auto 0;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--glass-border);
+      background: var(--bg-elevated);
+      padding: 4px;
+    }
+
+    /* ============================================================
+       FEATURES
+       ============================================================ */
+    .features {
+      padding: 96px 0;
+      background: var(--bg-surface);
+    }
+
+    .features__grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 16px;
+      overflow: hidden;
+      margin-top: 48px;
+    }
+
+    .feature-card {
+      position: relative;
+      background: var(--bg-surface);
+      padding: 32px 28px;
+      overflow: hidden;
+      transition: background 0.3s ease;
+    }
+
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(
+        400px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+        rgba(180,180,210,0.06), transparent 40%
+      );
+      opacity: var(--glow-opacity, 0);
+      transition: opacity 0.4s ease-out;
+      pointer-events: none;
+    }
+
+    .feature-card__icon {
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.08);
+      margin-bottom: 16px;
+      color: var(--silver-bright);
+    }
+    .feature-card__icon svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+
+    .feature-card__title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--silver-bright);
+      margin-bottom: 8px;
+      letter-spacing: -0.01em;
+    }
+
+    .feature-card__desc {
+      font-size: 0.875rem;
+      color: var(--silver-dim);
+      line-height: 1.5;
+    }
+
+    @media (max-width: 768px) {
+      .features__grid { grid-template-columns: 1fr; }
+    }
+    @media (min-width: 769px) and (max-width: 1024px) {
+      .features__grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    /* ============================================================
+       HOW IT WORKS
+       ============================================================ */
+    .how-it-works {
+      padding: 96px 0 112px;
+    }
+
+    .hiw__layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 48px;
+      margin-top: 48px;
+      align-items: start;
+    }
+
+    /* Terminal */
+    .terminal {
+      background: #0c0c10;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 24px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.7;
+      color: var(--silver-mid);
+      min-height: 320px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .terminal__line {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 4px;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+    }
+    .terminal__line.shown { opacity: 1; }
+
+    .terminal__prompt {
+      color: var(--silver-dim);
+      user-select: none;
+      flex-shrink: 0;
+    }
+
+    .terminal__text {
+      color: var(--silver-bright);
+    }
+
+    .terminal__output {
+      color: var(--silver-dim);
+      font-size: 12px;
+    }
+
+    .terminal__cursor {
+      display: inline-block;
+      width: 7px;
+      height: 15px;
+      background: rgba(255,255,255,0.6);
+      vertical-align: text-bottom;
+      animation: cursor-blink 1s step-end infinite;
+    }
+
+    @keyframes cursor-blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    /* Step cards */
+    .hiw__steps {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .step-card {
+      padding: 24px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.06);
+      background: var(--bg-elevated);
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.3s ease, background 0.3s ease;
+    }
+    .step-card.active {
+      border-color: rgba(255,255,255,0.12);
+      background: var(--bg-overlay);
+    }
+    .step-card.done {
+      border-color: rgba(255,255,255,0.08);
+    }
+
+    .step-card__header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .step-card__num {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: rgba(255,255,255,0.06);
+      color: var(--silver-dim);
+      flex-shrink: 0;
+      transition: background 0.3s, color 0.3s;
+    }
+    .step-card.active .step-card__num {
+      background: rgba(255,255,255,0.12);
+      color: var(--silver-bright);
+    }
+    .step-card.done .step-card__num {
+      background: rgba(255,255,255,0.1);
+      color: var(--silver-bright);
+    }
+
+    .step-card__title {
+      font-size: 0.9375rem;
+      font-weight: 600;
+      color: var(--silver-bright);
+      letter-spacing: -0.01em;
+    }
+
+    .step-card__desc {
+      font-size: 0.8125rem;
+      color: var(--silver-dim);
+      line-height: 1.5;
+      margin-left: 40px;
+    }
+
+    .step-card__progress {
+      height: 2px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 2px;
+      margin-top: 16px;
+      overflow: hidden;
+    }
+
+    .step-card__progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--silver-subtle), var(--silver-mid));
+      border-radius: 2px;
+      transition: width 1.8s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .step-card.active .step-card__progress-bar { width: 100%; }
+    .step-card.done .step-card__progress-bar { width: 100%; }
+
+    @media (max-width: 768px) {
+      .hiw__layout { grid-template-columns: 1fr; }
+    }
+
+    /* ============================================================
+       ALGORITHM (DiLoCo)
+       ============================================================ */
+    .algorithm {
+      padding: 96px 0;
+      background: var(--bg-surface);
+    }
+
+    .algo__grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-top: 48px;
+    }
+
+    .algo__block {
+      padding: 28px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.06);
+      background: var(--bg-elevated);
+    }
+    .algo__block-title {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--silver-bright);
+      margin-bottom: 12px;
+      letter-spacing: -0.01em;
+    }
+
+    .algo__code {
+      background: #0c0c10;
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 8px;
+      padding: 16px 20px;
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      line-height: 1.65;
+      color: var(--silver-mid);
+      overflow-x: auto;
+    }
+    .algo__code .kw { color: #b0b0c0; }
+    .algo__code .cm { color: #505060; }
+    .algo__code .op { color: #909098; }
+
+    .algo__callout {
+      margin-top: 24px;
+      padding: 20px 24px;
+      border-radius: 12px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.08);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .algo__callout-num {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--silver-bright);
+      letter-spacing: -0.04em;
+      flex-shrink: 0;
+    }
+    .algo__callout-text {
+      font-size: 0.9375rem;
+      color: var(--silver-dim);
+    }
+
+    .algo__params {
+      margin-top: 24px;
+    }
+
+    @media (max-width: 768px) {
+      .algo__grid { grid-template-columns: 1fr; }
+    }
+
+    /* ============================================================
+       ARCHITECTURE
+       ============================================================ */
+    .architecture {
+      padding: 96px 0;
+    }
+
+    .arch__diagram {
+      margin-top: 48px;
+      background: #0c0c10;
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 12px;
+      padding: 32px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--silver-dim);
+      overflow-x: auto;
+      white-space: pre;
+    }
+    .arch__diagram .hl { color: var(--silver-bright); }
+    .arch__diagram .dm { color: var(--silver-subtle); }
+
+    .arch__stack {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      margin-top: 32px;
+    }
+    .arch__layer {
+      padding: 12px 20px;
+      background: var(--bg-elevated);
+      border: 1px solid rgba(255,255,255,0.05);
+      font-size: 0.8125rem;
+      color: var(--silver-mid);
+      display: flex;
+      justify-content: space-between;
+    }
+    .arch__layer:first-child { border-radius: 10px 10px 0 0; }
+    .arch__layer:last-child { border-radius: 0 0 10px 10px; }
+    .arch__layer-name { font-weight: 500; color: var(--silver-bright); }
+    .arch__layer-desc { color: var(--silver-dim); font-size: 0.75rem; }
+
+    /* ============================================================
+       TABLES (shared)
+       ============================================================ */
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8125rem;
+      margin-top: 32px;
+    }
+    .data-table th {
+      text-align: left;
+      font-size: 0.6875rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--silver-dim);
+      padding: 10px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .data-table td {
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      color: var(--silver-mid);
+      vertical-align: top;
+    }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .data-table td:first-child { color: var(--silver-bright); font-weight: 500; }
+    .data-table code {
+      font-size: 0.8125rem;
+      color: var(--silver-mid);
+      background: rgba(255,255,255,0.04);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    /* ============================================================
+       PERFORMANCE
+       ============================================================ */
+    .performance {
+      padding: 96px 0;
+      background: var(--bg-surface);
+    }
+
+    .perf__callout {
+      margin-top: 32px;
+      padding: 24px 28px;
+      border-radius: 12px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255,255,255,0.08);
+      text-align: center;
+    }
+    .perf__callout-big {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--silver-bright);
+      letter-spacing: -0.03em;
+    }
+    .perf__callout-sub {
+      font-size: 0.875rem;
+      color: var(--silver-dim);
+      margin-top: 4px;
+    }
+
+    /* ============================================================
+       CLI REFERENCE
+       ============================================================ */
+    .cli-ref {
+      padding: 96px 0;
+    }
+
+    /* ============================================================
+       COMPARISON
+       ============================================================ */
+    .comparison {
+      padding: 96px 0;
+      background: var(--bg-surface);
+    }
+
+    .data-table .check {
+      color: var(--silver-bright);
+    }
+    .data-table .cross {
+      color: var(--silver-subtle);
+    }
+    .data-table .highlight-col {
+      background: rgba(255,255,255,0.02);
+    }
+
+    .data-table-wrap {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    /* ============================================================
+       SLEEP SWARMS
+       ============================================================ */
+    .sleep-swarms {
+      padding: 96px 0;
+      background: var(--bg-base);
+    }
+    .sleep-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-top: 48px;
+    }
+    @media (max-width: 768px) {
+      .sleep-grid { grid-template-columns: 1fr; }
+    }
+    .sleep-card {
+      background: var(--glass-bg);
+      backdrop-filter: blur(var(--glass-blur)) saturate(125%);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      padding: 32px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 8px 32px rgba(0,0,0,0.4);
+    }
+    .sleep-card h3 {
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: var(--silver-bright);
+      margin-bottom: 12px;
+      letter-spacing: -0.01em;
+    }
+    .sleep-card p {
+      font-size: 0.9375rem;
+      color: var(--silver-mid);
+      line-height: 1.6;
+    }
+    .sleep-card code {
+      font-family: var(--font-mono);
+      font-size: 0.8125rem;
+      background: rgba(255,255,255,0.06);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: var(--silver-bright);
+    }
+    .globe-visual {
+      grid-column: 1 / -1;
+      background: var(--glass-bg);
+      backdrop-filter: blur(var(--glass-blur)) saturate(125%);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      padding: 32px;
+      text-align: center;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 8px 32px rgba(0,0,0,0.4);
+    }
+    .coverage-bar {
+      display: flex;
+      gap: 2px;
+      margin-top: 16px;
+      justify-content: center;
+    }
+    .coverage-bar__hour {
+      width: 28px;
+      height: 32px;
+      border-radius: 4px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      font-size: 0.5625rem;
+      color: var(--silver-subtle);
+      padding-bottom: 2px;
+      transition: background 0.3s var(--ease-expo);
+    }
+    .coverage-bar__hour.active {
+      background: rgba(255,255,255,0.12);
+      border-color: rgba(255,255,255,0.18);
+      color: var(--silver-bright);
+    }
+    .coverage-bar__hour.active::before {
+      content: '';
+      position: absolute;
+      top: 4px;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--silver-bright);
+    }
+    .coverage-label {
+      font-size: 0.75rem;
+      color: var(--silver-dim);
+      margin-top: 12px;
+      letter-spacing: 0.02em;
+    }
+    @media (max-width: 640px) {
+      .coverage-bar__hour { width: 10px; height: 24px; font-size: 0; }
+    }
+
+    /* ============================================================
+       FOOTER
+       ============================================================ */
+    .footer {
+      padding: 48px 0;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    .footer__inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .footer__left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .footer__left img { width: 24px; height: 24px; }
+    .footer__left span {
+      font-size: 0.8125rem;
+      color: var(--silver-dim);
+    }
+    .footer__right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .footer__copy {
+      font-size: 0.75rem;
+      color: var(--silver-subtle);
+    }
+    @media (max-width: 640px) {
+      .footer__inner { flex-direction: column; gap: 16px; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ============================================================
+       NAVBAR
+       ============================================================ -->
+  <nav class="navbar" id="navbar">
+    <a href="#" class="navbar__logo">
+      <img src="ChatGPT_Image_Apr_20__2026__02_16_01_PM-removebg-preview.png" alt="AirTrain" width="28" height="28">
+      <span>AirTrain</span>
+    </a>
+    <ul class="navbar__links">
+      <li><a href="#features">Features</a></li>
+      <li><a href="#how-it-works">How It Works</a></li>
+      <li><a href="#algorithm">Algorithm</a></li>
+      <li><a href="#performance">Performance</a></li>
+      <li><a href="#comparison">Compare</a></li>
+      <li><a href="#sleep-swarms">Sleep Swarms</a></li>
+    </ul>
+    <div class="navbar__actions">
+      <a href="https://x.com/alexandercodes_" target="_blank" rel="noopener" class="navbar__icon-btn" aria-label="X / Twitter">
+        <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+      </a>
+      <a href="https://github.com/alexandercodes4/AirTrain" target="_blank" rel="noopener" class="glass-btn glass-btn--primary" style="padding:8px 16px; font-size:0.8125rem;">
+        <svg viewBox="0 0 16 16" width="16" height="16"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        GitHub
+      </a>
+    </div>
+  </nav>
+
+  <!-- Floating pill navbar (pops in after scrolling) -->
+  <nav class="navbar-float" id="navbar-float">
+    <a href="#" class="navbar__logo">
+      <img src="ChatGPT_Image_Apr_20__2026__02_16_01_PM-removebg-preview.png" alt="AirTrain" width="24" height="24">
+      <span>AirTrain</span>
+    </a>
+    <ul class="navbar__links">
+      <li><a href="#features">Features</a></li>
+      <li><a href="#how-it-works">How It Works</a></li>
+      <li><a href="#algorithm">Algorithm</a></li>
+      <li><a href="#performance">Performance</a></li>
+      <li><a href="#comparison">Compare</a></li>
+      <li><a href="#sleep-swarms">Sleep Swarms</a></li>
+    </ul>
+    <div class="navbar__actions">
+      <a href="https://x.com/alexandercodes_" target="_blank" rel="noopener" class="navbar__icon-btn" aria-label="X / Twitter">
+        <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+      </a>
+      <a href="https://github.com/alexandercodes4/AirTrain" target="_blank" rel="noopener" class="glass-btn glass-btn--primary" style="padding:8px 16px; font-size:0.8125rem;">
+        <svg viewBox="0 0 16 16" width="16" height="16"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        GitHub
+      </a>
+    </div>
+  </nav>
+
+  <!-- ============================================================
+       HERO
+       ============================================================ -->
+  <section class="hero">
+    <div class="hero__glow"></div>
+    <div class="container">
+      <img src="ChatGPT_Image_Apr_20__2026__02_16_01_PM-removebg-preview.png" alt="" class="hero__logo" data-animate>
+      <h1 class="hero__heading" data-animate>Distributed ML training across Apple Silicon Macs</h1>
+      <p class="hero__sub" data-animate>500x less network traffic. Zero config. Train for free.</p>
+      <div class="hero__actions" data-animate>
+        <a href="https://github.com/alexandercodes4/AirTrain" target="_blank" rel="noopener" class="glass-btn glass-btn--primary">
+          <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+          View on GitHub
+        </a>
+        <a href="#how-it-works" class="glass-btn">Get Started</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       DEMO
+       ============================================================ -->
+  <section class="demo" id="demo">
+    <div class="container">
+      <div class="demo__inner" data-animate>
+        <div style="text-align:center; margin-bottom: 24px;">
+          <span style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--silver-dim); letter-spacing: 0.02em;">AirTrain endorses this token:</span>
+          <div style="margin-top: 8px;">
+            <code style="font-family: var(--font-mono); font-size: 0.95rem; color: var(--silver-bright); background: var(--glass-bg); border: 1px solid var(--glass-border); padding: 8px 16px; border-radius: 8px; display: inline-block; letter-spacing: 0.01em; user-select: all; cursor: pointer;">coQifUTAKNaJks4uvcpNPZz1DioeThFCxLHKGBGpump</code>
+          </div>
+        </div>
+        <div class="section-label" style="justify-content:center;"><span>See it in action</span></div>
+        <div class="demo__embed-wrap" id="tweet-container">
+          <blockquote class="twitter-tweet" data-theme="dark" data-dnt="true" data-conversation="none">
+            <a href="https://x.com/AlexanderCodes_/status/2045251888828895311"></a>
+          </blockquote>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       FEATURES
+       ============================================================ -->
+  <section class="features" id="features">
+    <div class="container">
+      <div class="section-label" data-animate>Features</div>
+      <h2 class="section-heading" data-animate>Everything you need for distributed training</h2>
+      <p class="section-sub" data-animate>No cloud required. No complex setup. Just MacBooks and WiFi.</p>
+      <div class="features__grid" data-stagger>
+        <div class="feature-card" data-animate>
+          <div class="feature-card__icon">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+          </div>
+          <div class="feature-card__title">Zero-Config Discovery</div>
+          <div class="feature-card__desc">Devices find each other automatically via mDNS — the same protocol behind AirDrop and AirPlay.</div>
+        </div>
+        <div class="feature-card" data-animate>
+          <div class="feature-card__icon">
+            <svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          </div>
+          <div class="feature-card__title">500x Less Network Traffic</div>
+          <div class="feature-card__desc">DiLoCo syncs once every 500 steps instead of every step. WiFi is more than fast enough.</div>
+        </div>
+        <div class="feature-card" data-animate>
+          <div class="feature-card__icon">
+            <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <div class="feature-card__title">Fault Tolerant</div>
+          <div class="feature-card__desc">Nodes can join and leave mid-training without killing the run. The swarm adapts automatically.</div>
+        </div>
+        <div class="feature-card" data-animate>
+          <div class="feature-card__icon">
+            <svg viewBox="0 0 24 24"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>
+          </div>
+          <div class="feature-card__title">Training Relay</div>
+          <div class="feature-card__desc">Pause training, export a checkpoint, hand it off to someone else. Like a relay race for AI.</div>
+        </div>
+        <div class="feature-card" data-animate>
+          <div class="feature-card__icon">
+            <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8m-4-4v4"/></svg>
+          </div>
+          <div class="feature-card__title">Apple Silicon Native</div>
+          <div class="feature-card__desc">Built on MLX — Apple's ML framework. Unified memory means no host-to-device copy overhead.</div>
+        </div>
+        <div class="feature-card" data-animate>
+          <div class="feature-card__icon">
+            <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+          </div>
+          <div class="feature-card__title">Community Platform</div>
+          <div class="feature-card__desc">Find training partners, share checkpoints, and track contributions on a global leaderboard.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       HOW IT WORKS
+       ============================================================ -->
+  <section class="how-it-works" id="how-it-works">
+    <div class="container">
+      <div class="section-label" data-animate>How it works</div>
+      <h2 class="section-heading" data-animate>Training in three steps</h2>
+      <p class="section-sub" data-animate>One command to start. One command to join. That's it.</p>
+
+      <div class="hiw__layout">
+        <div class="terminal" id="hiw-terminal" data-animate>
+          <div class="terminal__line" id="tl-0">
+            <span class="terminal__prompt">$</span>
+            <span class="terminal__text" id="tt-0"></span>
+            <span class="terminal__cursor" id="tc-0"></span>
+          </div>
+          <div class="terminal__line" id="tl-1">
+            <span class="terminal__output" id="to-1"></span>
+          </div>
+          <div class="terminal__line" id="tl-2" style="margin-top:8px;">
+            <span class="terminal__prompt">$</span>
+            <span class="terminal__text" id="tt-2"></span>
+            <span class="terminal__cursor" id="tc-2"></span>
+          </div>
+          <div class="terminal__line" id="tl-3">
+            <span class="terminal__output" id="to-3"></span>
+          </div>
+          <div class="terminal__line" id="tl-4">
+            <span class="terminal__output" id="to-4"></span>
+          </div>
+          <div class="terminal__line" id="tl-5" style="margin-top:8px;">
+            <span class="terminal__prompt">$</span>
+            <span class="terminal__text" id="tt-5"></span>
+            <span class="terminal__cursor" id="tc-5"></span>
+          </div>
+          <div class="terminal__line" id="tl-6">
+            <span class="terminal__output" id="to-6"></span>
+          </div>
+          <div class="terminal__line" id="tl-7">
+            <span class="terminal__output" id="to-7"></span>
+          </div>
+        </div>
+
+        <div class="hiw__steps" data-animate>
+          <div class="step-card" id="step-0">
+            <div class="step-card__header">
+              <div class="step-card__num">1</div>
+              <div class="step-card__title">Install AirTrain</div>
+            </div>
+            <div class="step-card__desc">One pip install. No system dependencies, no Docker, no GPU drivers.</div>
+            <div class="step-card__progress"><div class="step-card__progress-bar"></div></div>
+          </div>
+          <div class="step-card" id="step-1">
+            <div class="step-card__header">
+              <div class="step-card__num">2</div>
+              <div class="step-card__title">Start Training</div>
+            </div>
+            <div class="step-card__desc">Launch as coordinator. Your Mac starts training and broadcasts itself on the network.</div>
+            <div class="step-card__progress"><div class="step-card__progress-bar"></div></div>
+          </div>
+          <div class="step-card" id="step-2">
+            <div class="step-card__header">
+              <div class="step-card__num">3</div>
+              <div class="step-card__title">Join &amp; Scale</div>
+            </div>
+            <div class="step-card__desc">Other Macs join with one command. Loss decreases faster as the swarm grows.</div>
+            <div class="step-card__progress"><div class="step-card__progress-bar"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       ALGORITHM
+       ============================================================ -->
+  <section class="algorithm" id="algorithm">
+    <div class="container">
+      <div class="section-label" data-animate>The Algorithm</div>
+      <h2 class="section-heading" data-animate>DiLoCo: Distributed Low-Communication Learning</h2>
+      <p class="section-sub" data-animate>Each Mac trains independently, then syncs only the difference. The math is elegant.</p>
+
+      <div class="algo__grid" data-animate>
+        <div class="algo__block">
+          <div class="algo__block-title">Inner Loop (local training)</div>
+          <pre class="algo__code"><span class="cm">/* Each worker independently */</span>
+<span class="kw">θ_local</span> = θ_global
+<span class="kw">for</span> step <span class="kw">in</span> range(<span class="op">500</span>):
+    loss = model(batch, θ_local)
+    θ_local <span class="op">-=</span> α · AdamW(∇loss)  <span class="cm">// α = 3e-4</span></pre>
+        </div>
+        <div class="algo__block">
+          <div class="algo__block-title">Outer Loop (synchronization)</div>
+          <pre class="algo__code"><span class="cm">/* Coordinator averages pseudo-gradients */</span>
+<span class="kw">Δθ</span> = θ_global <span class="op">-</span> θ_local       <span class="cm">// pseudo-gradient</span>
+<span class="kw">Δθ_avg</span> = mean(Δθ_1 ... Δθ_n)
+
+<span class="cm">/* Outer SGD + Nesterov momentum */</span>
+v = <span class="op">0.9</span> · v + Δθ_avg
+θ_global <span class="op">-=</span> <span class="op">0.7</span> · (Δθ_avg + <span class="op">0.9</span> · v)</pre>
+        </div>
+      </div>
+
+      <div class="algo__callout" data-animate>
+        <div class="algo__callout-num">500x</div>
+        <div class="algo__callout-text">
+          <strong style="color:var(--silver-bright)">Less communication than DDP.</strong>
+          Traditional distributed training syncs ~500MB every step. AirTrain syncs once every 500 steps — making WiFi viable.
+        </div>
+      </div>
+
+      <div class="algo__params" data-animate>
+        <table class="data-table">
+          <thead>
+            <tr><th>Parameter</th><th>Default</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>inner_steps</code></td><td>500</td><td>Local training steps before sync</td></tr>
+            <tr><td><code>inner_lr</code></td><td>3e-4</td><td>AdamW learning rate for local training</td></tr>
+            <tr><td><code>outer_lr</code></td><td>0.7</td><td>SGD learning rate for global update</td></tr>
+            <tr><td><code>outer_momentum</code></td><td>0.9</td><td>Nesterov momentum coefficient</td></tr>
+            <tr><td><code>gradient_compression</code></td><td>true</td><td>FP16 + gzip (4-6x reduction)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       ARCHITECTURE
+       ============================================================ -->
+  <section class="architecture" id="architecture">
+    <div class="container">
+      <div class="section-label" data-animate>Architecture</div>
+      <h2 class="section-heading" data-animate>System design</h2>
+
+      <div class="arch__diagram" data-animate><span class="hl">Mac #1 (Coordinator)</span>          <span class="hl">Mac #2 (Worker)</span>              <span class="hl">Mac #3 (Worker)</span>
+<span class="dm">┌────────────────────┐</span>      <span class="dm">┌────────────────────┐</span>      <span class="dm">┌────────────────────┐</span>
+<span class="dm">│</span>  Train 500 steps   <span class="dm">│</span>      <span class="dm">│</span>  Train 500 steps   <span class="dm">│</span>      <span class="dm">│</span>  Train 500 steps   <span class="dm">│</span>
+<span class="dm">│</span>  locally (MLX)     <span class="dm">│</span>      <span class="dm">│</span>  locally (MLX)     <span class="dm">│</span>      <span class="dm">│</span>  locally (MLX)     <span class="dm">│</span>
+<span class="dm">│</span>        <span class="hl">↓</span>           <span class="dm">│</span>      <span class="dm">│</span>        <span class="hl">↓</span>           <span class="dm">│</span>      <span class="dm">│</span>        <span class="hl">↓</span>           <span class="dm">│</span>
+<span class="dm">│</span>  Sync pseudo-grads <span class="dm">│</span> <span class="hl">◄──►</span> <span class="dm">│</span>  Sync pseudo-grads <span class="dm">│</span> <span class="hl">◄──►</span> <span class="dm">│</span>  Sync pseudo-grads <span class="dm">│</span>
+<span class="dm">│</span>  (over WiFi)       <span class="dm">│</span>      <span class="dm">│</span>  (over WiFi)       <span class="dm">│</span>      <span class="dm">│</span>  (over WiFi)       <span class="dm">│</span>
+<span class="dm">└────────────────────┘</span>      <span class="dm">└────────────────────┘</span>      <span class="dm">└────────────────────┘</span>
+         <span class="hl">↑</span>
+    mDNS Discovery
+   (zero-config LAN)</div>
+
+      <div class="arch__stack" data-animate>
+        <div class="arch__layer"><span class="arch__layer-name">CLI (click)</span><span class="arch__layer-desc">airtrain start / join / relay</span></div>
+        <div class="arch__layer"><span class="arch__layer-name">Coordinator / Worker</span><span class="arch__layer-desc">Orchestration layer</span></div>
+        <div class="arch__layer"><span class="arch__layer-name">DiLoCo Engine</span><span class="arch__layer-desc">Pseudo-gradient sync + outer optimizer</span></div>
+        <div class="arch__layer"><span class="arch__layer-name">Base Trainer (MLX)</span><span class="arch__layer-desc">Model + optimizer wrapper</span></div>
+        <div class="arch__layer"><span class="arch__layer-name">Transport (asyncio TCP)</span><span class="arch__layer-desc">Binary protocol + heartbeat</span></div>
+        <div class="arch__layer"><span class="arch__layer-name">Discovery (mDNS / HTTP Relay)</span><span class="arch__layer-desc">Zero-config peer finding</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       PERFORMANCE
+       ============================================================ -->
+  <section class="performance" id="performance">
+    <div class="container">
+      <div class="section-label" data-animate>Apple Silicon Performance</div>
+      <h2 class="section-heading" data-animate>Built for the chips in your pocket</h2>
+      <p class="section-sub" data-animate>Unified memory means your entire model fits in GPU-accessible RAM. No VRAM limits.</p>
+
+      <div data-animate>
+        <table class="data-table">
+          <thead>
+            <tr><th>Chip</th><th>GPU TFLOPS (FP32)</th><th>Memory BW</th><th>Unified Memory</th><th>TDP</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>M1</td><td>1.36</td><td>60 GB/s</td><td>8–16 GB</td><td>20W</td></tr>
+            <tr><td>M2</td><td>2.24</td><td>91 GB/s</td><td>8–24 GB</td><td>22W</td></tr>
+            <tr><td>M3</td><td>2.47</td><td>92 GB/s</td><td>8–24 GB</td><td>22W</td></tr>
+            <tr><td>M4</td><td>2.90</td><td>100 GB/s</td><td>16–32 GB</td><td>22W</td></tr>
+            <tr><td>M4 Pro</td><td>5.30</td><td>273 GB/s</td><td>24–48 GB</td><td>30W</td></tr>
+            <tr><td>M4 Max</td><td>18.43</td><td>546 GB/s</td><td>36–128 GB</td><td>40W</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="perf__callout" data-animate>
+        <div class="perf__callout-big">7 M4 MacBooks = 1 NVIDIA A100</div>
+        <div class="perf__callout-sub">20.3 combined TFLOPS — for $0 in compute cost. DiLoCo makes the WiFi overhead negligible.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       CLI REFERENCE
+       ============================================================ -->
+  <section class="cli-ref" id="cli">
+    <div class="container">
+      <div class="section-label" data-animate>CLI Reference</div>
+      <h2 class="section-heading" data-animate>Simple commands, powerful training</h2>
+
+      <div data-animate>
+        <table class="data-table">
+          <thead>
+            <tr><th>Command</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><code>airtrain init</code></td><td>Initialize a new training project</td></tr>
+            <tr><td><code>airtrain start --model gpt2 --dataset ./data</code></td><td>Start training as coordinator</td></tr>
+            <tr><td><code>airtrain join auto</code></td><td>Join a session via mDNS auto-discovery</td></tr>
+            <tr><td><code>airtrain join &lt;ip:port&gt;</code></td><td>Join a session at a specific address</td></tr>
+            <tr><td><code>airtrain status</code></td><td>Show cluster status</td></tr>
+            <tr><td><code>airtrain pause</code></td><td>Checkpoint and pause training</td></tr>
+            <tr><td><code>airtrain resume --from &lt;checkpoint&gt;</code></td><td>Resume from a saved checkpoint</td></tr>
+            <tr><td><code>airtrain relay export</code></td><td>Export portable relay checkpoint</td></tr>
+            <tr><td><code>airtrain relay import &lt;path&gt;</code></td><td>Import a relay checkpoint</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       COMPARISON
+       ============================================================ -->
+  <section class="comparison" id="comparison">
+    <div class="container">
+      <div class="section-label" data-animate>Comparison</div>
+      <h2 class="section-heading" data-animate>How AirTrain stacks up</h2>
+
+      <div class="data-table-wrap" data-animate>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Feature</th>
+              <th class="highlight-col">AirTrain</th>
+              <th>PyTorch DDP</th>
+              <th>Petals</th>
+              <th>Hivemind</th>
+              <th>Flower</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Apple Silicon native</td>
+              <td class="highlight-col check">&#10003; MLX</td>
+              <td class="cross">&#10007;</td>
+              <td>Partial</td>
+              <td>Partial</td>
+              <td class="cross">&#10007;</td>
+            </tr>
+            <tr>
+              <td>Works over WiFi</td>
+              <td class="highlight-col check">&#10003;</td>
+              <td class="cross">&#10007;</td>
+              <td class="check">&#10003;</td>
+              <td class="check">&#10003;</td>
+              <td class="check">&#10003;</td>
+            </tr>
+            <tr>
+              <td>Comm. reduction</td>
+              <td class="highlight-col check">500x</td>
+              <td>1x</td>
+              <td>N/A</td>
+              <td>~10x</td>
+              <td>Varies</td>
+            </tr>
+            <tr>
+              <td>Zero-config discovery</td>
+              <td class="highlight-col check">&#10003; mDNS</td>
+              <td class="cross">&#10007;</td>
+              <td class="cross">&#10007;</td>
+              <td class="cross">&#10007;</td>
+              <td class="cross">&#10007;</td>
+            </tr>
+            <tr>
+              <td>Dynamic join/leave</td>
+              <td class="highlight-col check">&#10003;</td>
+              <td class="cross">&#10007;</td>
+              <td class="check">&#10003;</td>
+              <td class="check">&#10003;</td>
+              <td class="check">&#10003;</td>
+            </tr>
+            <tr>
+              <td>Checkpoint relay</td>
+              <td class="highlight-col check">&#10003;</td>
+              <td class="cross">&#10007;</td>
+              <td class="cross">&#10007;</td>
+              <td class="cross">&#10007;</td>
+              <td class="cross">&#10007;</td>
+            </tr>
+            <tr>
+              <td>Community platform</td>
+              <td class="highlight-col check">&#10003;</td>
+              <td class="cross">&#10007;</td>
+              <td class="cross">&#10007;</td>
+              <td class="cross">&#10007;</td>
+              <td class="cross">&#10007;</td>
+            </tr>
+            <tr>
+              <td>Sleep Swarms</td>
+              <td class="highlight-col check">&#10003; 24/7</td>
+              <td class="cross">&#10007;</td>
+              <td class="cross">&#10007;</td>
+              <td class="cross">&#10007;</td>
+              <td class="cross">&#10007;</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       SLEEP SWARMS
+       ============================================================ -->
+  <section class="sleep-swarms" id="sleep-swarms">
+    <div class="container">
+      <div class="section-label" data-animate><span>Coming Soon</span></div>
+      <h2 class="section-heading" data-animate>Sleep Swarms</h2>
+      <p style="color: var(--silver-mid); max-width: 640px; margin: 16px auto 0; text-align: center; line-height: 1.6;" data-animate>
+        Your Mac trains while you sleep. Set a window, and AirTrain auto-joins sessions overnight &mdash; then hands off to someone in another timezone when you wake up. The model trains 24/7 by chasing nighttime around the globe.
+      </p>
+
+      <div class="sleep-grid">
+        <div class="sleep-card" data-animate>
+          <h3>Set Your Window</h3>
+          <p>Tell AirTrain when your Mac is free. It handles the rest &mdash; finding sessions, downloading checkpoints, and training automatically.</p>
+          <p style="margin-top: 16px;"><code>airtrain sleep --window "23:00-07:00"</code></p>
+        </div>
+
+        <div class="sleep-card" data-animate>
+          <h3>Chase the Night</h3>
+          <p>New York sleeps, Tokyo wakes. Your checkpoint passes across time zones so the model never stops training. 24/7 compute from idle MacBooks worldwide.</p>
+        </div>
+
+        <div class="sleep-card" data-animate>
+          <h3>Smart Matching</h3>
+          <p>Filter by model preference with <code>--prefer "gpt2*"</code>. AirTrain matches you to sessions that need your timezone's coverage the most.</p>
+        </div>
+
+        <div class="sleep-card" data-animate>
+          <h3>Safe by Default</h3>
+          <p>Auto-stops if battery drops below 20%, lid is closed, or your window ends. Checkpoints are saved before every disconnect. Zero data loss.</p>
+        </div>
+
+        <div class="globe-visual" data-animate>
+          <h3 style="margin-bottom: 4px;">24-Hour Coverage Map</h3>
+          <p class="coverage-label">UTC hours with active sleepers training</p>
+          <div class="coverage-bar" id="coverage-bar"></div>
+          <p class="coverage-label" style="margin-top: 16px;">
+            Models train continuously as nighttime sweeps across the planet
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       FOOTER
+       ============================================================ -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer__inner">
+        <div class="footer__left">
+          <img src="ChatGPT_Image_Apr_20__2026__02_16_01_PM-removebg-preview.png" alt="AirTrain" width="24" height="24">
+          <span>AirTrain</span>
+          <span class="footer__copy">&middot; MIT License &middot; 2026</span>
+        </div>
+        <div class="footer__right">
+          <a href="https://x.com/alexandercodes_" target="_blank" rel="noopener" class="navbar__icon-btn" aria-label="X / Twitter">
+            <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+          </a>
+          <a href="https://github.com/alexandercodes4/AirTrain" target="_blank" rel="noopener" class="glass-btn" style="padding:6px 14px; font-size:0.75rem;">
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+            GitHub
+          </a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ============================================================
+       SCRIPTS
+       ============================================================ -->
+  <script>
+    /* ---- Navbar: static top + floating pill pop-in ---- */
+    (function() {
+      const topNav = document.getElementById('navbar');
+      const floatNav = document.getElementById('navbar-float');
+      let ticking = false;
+      let wasFloating = false;
+
+      function update() {
+        // Show floating pill once the top navbar scrolls out of view
+        const threshold = topNav.offsetHeight + 40;
+        const shouldFloat = window.scrollY > threshold;
+        if (shouldFloat !== wasFloating) {
+          if (shouldFloat) {
+            topNav.classList.add('hidden');
+            floatNav.classList.add('visible');
+          } else {
+            topNav.classList.remove('hidden');
+            floatNav.classList.remove('visible');
+          }
+          wasFloating = shouldFloat;
+        }
+        ticking = false;
+      }
+
+      window.addEventListener('scroll', function() {
+        if (!ticking) {
+          requestAnimationFrame(update);
+          ticking = true;
+        }
+      }, { passive: true });
+    })();
+
+    /* ---- Scroll animations ---- */
+    (function() {
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+      const observer = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      }, { rootMargin: '0px 0px -60px 0px', threshold: 0.1 });
+
+      document.querySelectorAll('[data-animate], [data-stagger]').forEach(function(el) {
+        observer.observe(el);
+      });
+    })();
+
+    /* ---- Feature card spotlight ---- */
+    (function() {
+      document.querySelectorAll('.feature-card').forEach(function(card) {
+        card.addEventListener('mousemove', function(e) {
+          var rect = card.getBoundingClientRect();
+          card.style.setProperty('--mouse-x', (e.clientX - rect.left) + 'px');
+          card.style.setProperty('--mouse-y', (e.clientY - rect.top) + 'px');
+          card.style.setProperty('--glow-opacity', '1');
+        });
+        card.addEventListener('mouseleave', function() {
+          card.style.setProperty('--glow-opacity', '0');
+        });
+      });
+    })();
+
+    /* ---- Terminal typing animation ---- */
+    (function() {
+      var sequences = [
+        { type: 'cmd',    lineId: 'tl-0', textId: 'tt-0', cursorId: 'tc-0', text: 'pip install airtrain', step: 0 },
+        { type: 'output', lineId: 'tl-1', textId: 'to-1', text: 'Successfully installed airtrain-0.1.0', delay: 600 },
+        { type: 'cmd',    lineId: 'tl-2', textId: 'tt-2', cursorId: 'tc-2', text: 'airtrain start --model gpt2 --dataset ./data', step: 1 },
+        { type: 'output', lineId: 'tl-3', textId: 'to-3', text: 'Coordinator listening on 0.0.0.0:7471', delay: 400 },
+        { type: 'output', lineId: 'tl-4', textId: 'to-4', text: 'Broadcasting via mDNS... waiting for workers', delay: 400 },
+        { type: 'cmd',    lineId: 'tl-5', textId: 'tt-5', cursorId: 'tc-5', text: 'airtrain join auto', step: 2 },
+        { type: 'output', lineId: 'tl-6', textId: 'to-6', text: 'Found coordinator at 192.168.1.10:7471', delay: 300 },
+        { type: 'output', lineId: 'tl-7', textId: 'to-7', text: 'Training... Round 1 | loss 4.72 | 2 Macs | 98k tok/s', delay: 400 },
+      ];
+
+      var started = false;
+
+      function activateStep(n) {
+        for (var i = 0; i < 3; i++) {
+          var card = document.getElementById('step-' + i);
+          if (!card) continue;
+          card.classList.remove('active', 'done');
+          if (i < n) card.classList.add('done');
+          else if (i === n) card.classList.add('active');
+        }
+      }
+
+      function typeText(el, text, charDelay) {
+        return new Promise(function(resolve) {
+          var i = 0;
+          function tick() {
+            if (i < text.length) {
+              el.textContent = text.substring(0, i + 1);
+              i++;
+              setTimeout(tick, charDelay);
+            } else {
+              resolve();
+            }
+          }
+          tick();
+        });
+      }
+
+      async function runSequence() {
+        for (var s = 0; s < sequences.length; s++) {
+          var seq = sequences[s];
+          var line = document.getElementById(seq.lineId);
+          if (!line) continue;
+          line.classList.add('shown');
+
+          if (seq.type === 'cmd') {
+            if (typeof seq.step === 'number') activateStep(seq.step);
+            var textEl = document.getElementById(seq.textId);
+            var cursorEl = document.getElementById(seq.cursorId);
+            if (cursorEl) cursorEl.style.display = 'inline-block';
+            await typeText(textEl, seq.text, 35);
+            if (cursorEl) cursorEl.style.display = 'none';
+            await new Promise(function(r) { setTimeout(r, 300); });
+          } else {
+            var outEl = document.getElementById(seq.textId);
+            if (outEl) outEl.textContent = seq.text;
+            await new Promise(function(r) { setTimeout(r, seq.delay || 300); });
+          }
+        }
+        // Mark last step done after all output
+        for (var i = 0; i < 3; i++) {
+          var card = document.getElementById('step-' + i);
+          if (card) { card.classList.remove('active'); card.classList.add('done'); }
+        }
+      }
+
+      var termObserver = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+          if (entry.isIntersecting && !started) {
+            started = true;
+            termObserver.unobserve(entry.target);
+            setTimeout(runSequence, 400);
+          }
+        });
+      }, { threshold: 0.3 });
+
+      var term = document.getElementById('hiw-terminal');
+      if (term) termObserver.observe(term);
+    })();
+
+    /* ---- Lazy-load Twitter widget ---- */
+    (function() {
+      var tweetLoaded = false;
+      var tweetObserver = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+          if (entry.isIntersecting && !tweetLoaded) {
+            tweetLoaded = true;
+            tweetObserver.unobserve(entry.target);
+            var s = document.createElement('script');
+            s.src = 'https://platform.twitter.com/widgets.js';
+            s.async = true;
+            document.body.appendChild(s);
+          }
+        });
+      }, { rootMargin: '200px' });
+
+      var container = document.getElementById('tweet-container');
+      if (container) tweetObserver.observe(container);
+    })();
+
+    /* ---- Sleep Swarms coverage bar ---- */
+    (function() {
+      var bar = document.getElementById('coverage-bar');
+      if (!bar) return;
+
+      // Simulate coverage: nighttime hours across major timezones
+      // These represent UTC hours where at least one timezone has sleepers
+      var covered = [0,1,2,3,4,5,6,7,8,9,10,11,13,14,15,16,17,21,22,23];
+      var coveredSet = {};
+      covered.forEach(function(h) { coveredSet[h] = true; });
+
+      for (var h = 0; h < 24; h++) {
+        var el = document.createElement('div');
+        el.className = 'coverage-bar__hour' + (coveredSet[h] ? ' active' : '');
+        el.style.position = 'relative';
+        el.textContent = h.toString().padStart(2, '0');
+        bar.appendChild(el);
+      }
+
+      // Animate bars lighting up on scroll
+      var barObserver = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+          if (entry.isIntersecting) {
+            barObserver.unobserve(entry.target);
+            var hours = bar.querySelectorAll('.coverage-bar__hour');
+            hours.forEach(function(el, i) {
+              if (el.classList.contains('active')) {
+                el.style.opacity = '0';
+                setTimeout(function() {
+                  el.style.opacity = '1';
+                }, i * 40);
+              }
+            });
+          }
+        });
+      }, { threshold: 0.3 });
+      barObserver.observe(bar);
+    })();
+  </script>
+</body>
+</html>

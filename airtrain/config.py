@@ -86,6 +86,21 @@ class CheckpointMeta(BaseModel):
     description: str = ""
 
 
+class SleepConfig(BaseModel):
+    """Configuration for Sleep Swarm — automatic overnight training."""
+
+    window_start: str = "23:00"
+    window_end: str = "07:00"
+    timezone: str = ""  # auto-detected from system if empty
+    max_hours: float = 8.0
+    prefer_model: str = "any"
+    min_battery: int = 20
+    relay_url: str = "https://airtrain.dev/api/relay"
+    auto_checkpoint: bool = True
+    retry_on_disconnect: bool = True
+    max_retries: int = 3
+
+
 class NetworkConfig(BaseModel):
     """Network configuration for peer communication."""
 

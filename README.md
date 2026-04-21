@@ -293,6 +293,59 @@ airtrain start --model gpt2-small --dataset ./data --resume ./relay-gpt2-step500
 
 This is like a relay race — each runner (Mac) carries the baton (checkpoint) for their leg, then hands it off.
 
+## Sleep Swarms
+
+The most unique feature in AirTrain: **your Mac trains while you sleep**, then hands off to someone in another timezone when you wake up. The model trains 24/7 by chasing nighttime around the globe.
+
+```bash
+airtrain sleep --window "23:00-07:00" --prefer "gpt2*"
+```
+
+### How It Works
+
+1. You set a **training window** — the hours your Mac is available (default: 11pm–7am)
+2. During that window, AirTrain automatically:
+   - Queries the relay server for active sleep swarm sessions
+   - Downloads the latest checkpoint for the best matching session
+   - Joins as a worker and starts training
+3. When your window closes (or battery drops below 20%, or you close the lid):
+   - Saves a checkpoint
+   - Disconnects gracefully
+   - Uploads the updated checkpoint for the next timezone to pick up
+
+### Timezone Coverage
+
+A model in a sleep swarm passes through contributors around the world:
+
+```
+UTC  00  02  04  06  08  10  12  14  16  18  20  22
+     ████████████                                ████  New York (23:00-07:00)
+                 ████████████                          London (00:00-08:00)
+                             ████████████              Mumbai (05:30-13:30)
+                                         ████████████  Tokyo (09:00-17:00)
+     ─────────────────────────────────────────────────
+     ████████████████████████████████████████████████  = 24/7 coverage
+```
+
+### Configuration
+
+| Flag | Default | Description |
+|---|---|---|
+| `--window` | `23:00-07:00` | Training window in local time |
+| `--prefer` | `any` | Model filter (e.g., `gpt2*`, `llama*`) |
+| `--max-hours` | 8 | Max compute hours per night |
+| `--min-battery` | 20 | Stop if battery drops below this % |
+| `--relay` | `airtrain.dev/api/relay` | Relay server URL |
+
+### Safety
+
+Sleep Swarms are safe by default:
+- **Battery protection** — stops training if battery drops below 20%
+- **Lid detection** — pauses if you close your MacBook
+- **Window enforcement** — always stops when your window ends
+- **Auto-checkpoint** — saves progress before every disconnect
+- **Retry logic** — reconnects automatically if Wi-Fi drops
+
 ## Local Dashboard
 
 When you run training with `--dashboard`, AirTrain starts a web UI at `http://localhost:8471`:
@@ -485,6 +538,7 @@ With DiLoCo's 500x communication reduction, the Wi-Fi overhead is negligible. Yo
 | `airtrain resume --from <checkpoint>` | Resume from a saved checkpoint |
 | `airtrain relay export --checkpoint <path>` | Export portable relay checkpoint |
 | `airtrain relay import <path>` | Import a relay checkpoint |
+| `airtrain sleep --window "23:00-07:00"` | Auto-join sessions while you sleep |
 
 ### Key Flags
 
@@ -589,6 +643,7 @@ AirTrain/
 | Dynamic join/leave | Yes | No | Yes | Yes | Yes (per round) |
 | Checkpoint relay | Yes | No | No | No | No |
 | Community platform | airtrain.dev | No | No | No | No |
+| Sleep Swarms (24/7) | Yes | No | No | No | No |
 | Target hardware | Mac (Apple Silicon) | NVIDIA GPU | Any GPU | Any GPU | Any |
 
 ### When to Use AirTrain vs Alternatives

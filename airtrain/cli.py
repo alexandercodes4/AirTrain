@@ -9,7 +9,7 @@ from pathlib import Path
 import click
 
 from airtrain import __version__
-from airtrain.config import DiLoCoConfig, NetworkConfig, PeerRole, TrainingConfig
+from airtrain.config import DiLoCoConfig, NetworkConfig, PeerRole, SleepConfig, TrainingConfig
 
 
 @click.group()
@@ -130,6 +130,52 @@ def pause(checkpoint_dir: str):
 def resume(from_checkpoint: str):
     """Resume training from a checkpoint."""
     click.echo(f"Resuming training from {from_checkpoint}...")
+
+
+@cli.command()
+@click.option("--window", default="23:00-07:00", help="Training window in local time (HH:MM-HH:MM)")
+@click.option("--prefer", default="any", help="Model filter (e.g., 'gpt2*', 'llama*', 'any')")
+@click.option("--max-hours", default=8.0, help="Max compute hours per night")
+@click.option("--min-battery", default=20, help="Stop if battery drops below this %")
+@click.option("--relay", "relay_url", default="https://airtrain.dev/api/relay", help="Relay server URL")
+def sleep(window: str, prefer: str, max_hours: float, min_battery: int, relay_url: str):
+    """Join training sessions automatically while you sleep.
+
+    Set a training window and AirTrain will find and join sleep swarm
+    sessions during those hours. Your Mac trains overnight, then hands
+    off to someone in another timezone when your window closes.
+
+    The model trains 24/7 by chasing nighttime around the globe.
+    """
+    from airtrain.engine.sleep import run_sleep_scheduler
+
+    parts = window.split("-")
+    if len(parts) != 2:
+        click.echo("Error: --window must be HH:MM-HH:MM (e.g., 23:00-07:00)")
+        return
+
+    config = SleepConfig(
+        window_start=parts[0].strip(),
+        window_end=parts[1].strip(),
+        max_hours=max_hours,
+        prefer_model=prefer,
+        min_battery=min_battery,
+        relay_url=relay_url,
+    )
+
+    click.echo("=" * 50)
+    click.echo("  AirTrain — Sleep Swarm")
+    click.echo("=" * 50)
+    click.echo(f"  Window:      {config.window_start} - {config.window_end}")
+    click.echo(f"  Model pref:  {config.prefer_model}")
+    click.echo(f"  Max hours:   {config.max_hours}")
+    click.echo(f"  Min battery: {config.min_battery}%")
+    click.echo(f"  Relay:       {config.relay_url}")
+    click.echo("=" * 50)
+    click.echo("\nYour Mac will auto-join training during the window.")
+    click.echo("Press Ctrl+C to stop.\n")
+
+    asyncio.run(run_sleep_scheduler(config))
 
 
 @cli.group()
