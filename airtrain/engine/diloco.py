@@ -46,12 +46,16 @@ class DiLoCoEngine:
         return grads
 
     def apply_outer_step(
-        self, pseudo_gradients_list: list[dict[str, Any]]
+        self,
+        pseudo_gradients_list: list[dict[str, Any]],
+        weights: list[float] | None = None,
     ) -> dict[str, Any]:
         """Average pseudo-gradients and apply outer SGD+Nesterov update.
 
         Args:
             pseudo_gradients_list: List of pseudo-gradient dicts from each worker.
+            weights: Optional per-worker weights (must sum to 1.0).
+                     If None, uses equal weights (simple mean).
 
         Returns:
             Updated parameters.
@@ -62,11 +66,24 @@ class DiLoCoEngine:
         n_workers = len(pseudo_gradients_list)
         keys = pseudo_gradients_list[0].keys()
 
-        # Average pseudo-gradients across workers
+        # Average pseudo-gradients across workers (weighted or equal)
         avg_grads = {}
-        for key in keys:
-            stacked = mx.stack([pg[key] for pg in pseudo_gradients_list if key in pg])
-            avg_grads[key] = mx.mean(stacked, axis=0)
+        if weights is not None and len(weights) == n_workers:
+            # Weighted average via Gradient Marketplace
+            for key in keys:
+                weighted_sum = None
+                for i, pg in enumerate(pseudo_gradients_list):
+                    if key in pg:
+                        contrib = mx.array(weights[i]) * pg[key]
+                        weighted_sum = contrib if weighted_sum is None else weighted_sum + contrib
+                if weighted_sum is not None:
+                    avg_grads[key] = weighted_sum
+            logger.info("Using marketplace-weighted gradient averaging")
+        else:
+            # Simple mean (default)
+            for key in keys:
+                stacked = mx.stack([pg[key] for pg in pseudo_gradients_list if key in pg])
+                avg_grads[key] = mx.mean(stacked, axis=0)
 
         # SGD + Nesterov momentum update
         lr = self.config.outer_lr

@@ -431,6 +431,43 @@ airtrain autopsy --events ./autopsy/events.jsonl --format json --output report.j
 
 Reports are viewable on the website, showing every contributor who helped train the model.
 
+## Gradient Marketplace
+
+Not all gradients are created equal. The Gradient Marketplace **scores each worker's contribution** and gives higher-quality gradients more influence in the aggregation step. Workers with better data, more consistent training, or stronger hardware naturally rise to the top.
+
+### How Scoring Works
+
+After each sync round, the coordinator evaluates every worker on 4 metrics:
+
+| Metric | Weight | What It Measures |
+|---|---|---|
+| **Alignment** | 35% | Cosine similarity with the consensus gradient. High alignment = agrees with the group = likely good data. |
+| **Magnitude** | 25% | Is the gradient a healthy size? Too small = stale. Too large = diverging. Peaks near the median. |
+| **History** | 25% | Rolling average of past scores. Consistent contributors build trust over time. |
+| **Improvement** | 15% | Did loss decrease when this worker's gradients were used? Retroactive credit for results. |
+
+Scores are normalized to weights that sum to 1.0. A minimum weight floor (default 10%) ensures no worker is ever completely silenced — even low-scoring workers contribute something.
+
+### Warmup Period
+
+During the first 3 sync rounds, all workers receive equal weights. The marketplace needs a few rounds of history before it can meaningfully differentiate contributors.
+
+### Example Output
+
+```
+Marketplace Rankings (Round 12):
+  #1  MacBook-Pro-Alex   w=0.312  mag=0.95  align=0.87  hist=0.81  imp=0.72
+  #2  Mac-Mini-Server    w=0.289  mag=0.91  align=0.82  hist=0.78  imp=0.68
+  #3  MacBook-Air-Joe    w=0.245  mag=0.88  align=0.71  hist=0.65  imp=0.61
+  #4  iMac-Reception     w=0.154  mag=0.42  align=0.53  hist=0.50  imp=0.50
+```
+
+### Why This Matters
+
+In traditional distributed training, a single bad worker (training on corrupted data, running on failing hardware) can poison the entire model by contributing garbage gradients that get averaged equally with good ones. The Gradient Marketplace automatically detects and downweights these workers without kicking them out — their contribution is reduced, not eliminated.
+
+This also creates a natural quality incentive for the community: workers who contribute better data and more reliable compute earn higher marketplace scores, which feed into the website leaderboard.
+
 ## Local Dashboard
 
 When you run training with `--dashboard`, AirTrain starts a web UI at `http://localhost:8471`:

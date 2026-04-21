@@ -1139,6 +1139,7 @@
           <a href="#sleep-swarms">Sleep Swarms</a>
           <a href="#dream-training">Dream Training</a>
           <a href="#autopsy">Model Autopsy</a>
+          <a href="#marketplace">Gradient Marketplace</a>
         </div>
       </li>
       <li><a href="#how-it-works">How It Works</a></li>
@@ -1173,6 +1174,7 @@
           <a href="#sleep-swarms">Sleep Swarms</a>
           <a href="#dream-training">Dream Training</a>
           <a href="#autopsy">Model Autopsy</a>
+          <a href="#marketplace">Gradient Marketplace</a>
         </div>
       </li>
       <li><a href="#how-it-works">How It Works</a></li>
@@ -1733,6 +1735,58 @@ v = <span class="op">0.9</span> · v + Δθ_avg
           <code style="background: rgba(255,255,255,0.06); padding: 6px 12px; border-radius: 6px; color: var(--silver-mid);">$ airtrain autopsy --events ./autopsy/events.jsonl</code>
         </p>
       </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       GRADIENT MARKETPLACE
+       ============================================================ -->
+  <section class="marketplace" id="marketplace" style="padding: 100px 0 80px;">
+    <div class="container">
+      <div class="section-label" data-animate><span>Quality Control</span></div>
+      <h2 class="section-heading" data-animate>Gradient Marketplace</h2>
+      <p style="color: var(--silver-mid); max-width: 640px; margin: 16px auto 0; text-align: center; line-height: 1.6;" data-animate>
+        Not all gradients are equal. The marketplace scores each worker&rsquo;s contribution and gives higher-quality gradients more influence &mdash; the first distributed training framework with quality-weighted aggregation.
+      </p>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-top: 48px; max-width: 900px; margin-left: auto; margin-right: auto;" data-animate>
+        <div style="background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur)); border: 1px solid var(--glass-border); border-radius: 14px; padding: 24px;">
+          <div style="font-size: 2rem; margin-bottom: 8px;">🎯</div>
+          <h4 style="color: var(--silver-bright); font-size: 0.9375rem; margin-bottom: 6px;">Alignment</h4>
+          <p style="color: var(--silver-dim); font-size: 0.8125rem; line-height: 1.5;">Cosine similarity with consensus. Workers agreeing with the group get more weight.</p>
+          <div style="margin-top: 12px; font-family: var(--font-mono); font-size: 0.75rem; color: var(--silver-mid);">35% weight</div>
+        </div>
+        <div style="background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur)); border: 1px solid var(--glass-border); border-radius: 14px; padding: 24px;">
+          <div style="font-size: 2rem; margin-bottom: 8px;">📏</div>
+          <h4 style="color: var(--silver-bright); font-size: 0.9375rem; margin-bottom: 6px;">Magnitude</h4>
+          <p style="color: var(--silver-dim); font-size: 0.8125rem; line-height: 1.5;">Healthy gradient size? Too small = stale. Too large = diverging. Peaks at the median.</p>
+          <div style="margin-top: 12px; font-family: var(--font-mono); font-size: 0.75rem; color: var(--silver-mid);">25% weight</div>
+        </div>
+        <div style="background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur)); border: 1px solid var(--glass-border); border-radius: 14px; padding: 24px;">
+          <div style="font-size: 2rem; margin-bottom: 8px;">📈</div>
+          <h4 style="color: var(--silver-bright); font-size: 0.9375rem; margin-bottom: 6px;">History</h4>
+          <p style="color: var(--silver-dim); font-size: 0.8125rem; line-height: 1.5;">Rolling average of past scores. Consistent contributors build trust over time.</p>
+          <div style="margin-top: 12px; font-family: var(--font-mono); font-size: 0.75rem; color: var(--silver-mid);">25% weight</div>
+        </div>
+        <div style="background: var(--glass-bg); backdrop-filter: blur(var(--glass-blur)); border: 1px solid var(--glass-border); border-radius: 14px; padding: 24px;">
+          <div style="font-size: 2rem; margin-bottom: 8px;">⚡</div>
+          <h4 style="color: var(--silver-bright); font-size: 0.9375rem; margin-bottom: 6px;">Improvement</h4>
+          <p style="color: var(--silver-dim); font-size: 0.8125rem; line-height: 1.5;">Did loss decrease when your gradients were used? Retroactive credit for results.</p>
+          <div style="margin-top: 12px; font-family: var(--font-mono); font-size: 0.75rem; color: var(--silver-mid);">15% weight</div>
+        </div>
+      </div>
+
+      <div style="background: var(--bg-surface); border: 1px solid var(--glass-border); border-radius: 14px; padding: 24px 28px; margin-top: 40px; max-width: 700px; margin-left: auto; margin-right: auto; font-family: var(--font-mono); font-size: 0.8125rem; line-height: 1.8;" data-animate>
+        <div style="color: var(--silver-dim); margin-bottom: 8px;">Marketplace Rankings (Round 12):</div>
+        <div style="color: #4ade80;">&nbsp;&nbsp;#1&nbsp;&nbsp;MacBook-Pro-Alex&nbsp;&nbsp;&nbsp;w=0.312&nbsp;&nbsp;mag=0.95&nbsp;&nbsp;align=0.87&nbsp;&nbsp;hist=0.81</div>
+        <div style="color: #a3e635;">&nbsp;&nbsp;#2&nbsp;&nbsp;Mac-Mini-Server&nbsp;&nbsp;&nbsp;&nbsp;w=0.289&nbsp;&nbsp;mag=0.91&nbsp;&nbsp;align=0.82&nbsp;&nbsp;hist=0.78</div>
+        <div style="color: var(--silver-mid);">&nbsp;&nbsp;#3&nbsp;&nbsp;MacBook-Air-Joe&nbsp;&nbsp;&nbsp;&nbsp;w=0.245&nbsp;&nbsp;mag=0.88&nbsp;&nbsp;align=0.71&nbsp;&nbsp;hist=0.65</div>
+        <div style="color: var(--silver-dim);">&nbsp;&nbsp;#4&nbsp;&nbsp;iMac-Reception&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;w=0.154&nbsp;&nbsp;mag=0.42&nbsp;&nbsp;align=0.53&nbsp;&nbsp;hist=0.50</div>
+      </div>
+
+      <p style="text-align: center; margin-top: 24px; color: var(--silver-dim); font-size: 0.8125rem; line-height: 1.6; max-width: 600px; margin-left: auto; margin-right: auto;" data-animate>
+        Bad workers are automatically downweighted &mdash; not kicked out. A minimum floor ensures every contributor has some influence, while quality rises to the top.
+      </p>
     </div>
   </section>
 

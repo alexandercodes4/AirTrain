@@ -17,11 +17,13 @@ import numpy as np
 from airtrain.compat import MLX_AVAILABLE, require_mlx
 from airtrain.config import (
     CheckpointMeta,
+    MarketplaceConfig,
     NetworkConfig,
     PeerRole,
     PeerStatus,
     TrainingConfig,
 )
+from airtrain.engine.marketplace import GradientMarketplace
 from airtrain.discovery.peer import PeerManager, get_local_peer_info
 from airtrain.network.compression import compress_gradients, decompress_gradients
 from airtrain.network.protocol import Message, MessageType
@@ -57,6 +59,7 @@ async def run_coordinator(
     model = get_model(training_config.model_name)
     trainer = BaseTrainer(model, training_config)
     diloco = DiLoCoEngine(training_config.diloco)
+    marketplace = GradientMarketplace(MarketplaceConfig())
 
     param_count = sum(p.size for p in model.parameters().values())
     logger.info("Model %s: %d parameters", training_config.model_name, param_count)
@@ -197,15 +200,39 @@ async def run_coordinator(
                     )
 
             # Collect all pseudo-gradients (coordinator + workers)
+            all_peer_ids = [peer_info.peer_id]
             all_grads_np = [coord_grads_np]
-            all_grads_np.extend(pending_gradients.values())
+            for pid, grads in pending_gradients.items():
+                all_peer_ids.append(pid)
+                all_grads_np.append(grads)
 
-            # Convert to MLX and apply outer step
+            # Score gradients via Marketplace
+            prev_loss = trainer.avg_loss
+            grads_by_peer = dict(zip(all_peer_ids, all_grads_np))
+            mp_weights = marketplace.score_gradients(grads_by_peer, diloco.outer_step)
+            weight_list = [mp_weights[pid] for pid in all_peer_ids]
+
+            # Convert to MLX and apply outer step (weighted)
             all_grads_mx = [diloco.numpy_to_params(g) for g in all_grads_np]
-            new_params = diloco.apply_outer_step(all_grads_mx)
+            new_params = diloco.apply_outer_step(all_grads_mx, weights=weight_list)
 
             # Update model
             trainer.set_parameters(new_params)
+
+            # Update marketplace history with loss delta
+            new_loss = trainer.avg_loss
+            loss_delta = new_loss - prev_loss
+            for pid in all_peer_ids:
+                marketplace.update_history(pid, mp_weights[pid], loss_delta)
+
+            # Log marketplace rankings
+            rankings = marketplace.get_rankings()
+            if rankings:
+                rank_str = " | ".join(
+                    f"#{s.rank} {s.peer_id[:8]} w={s.weight:.3f}"
+                    for s in rankings[:5]
+                )
+                logger.info("Marketplace: %s", rank_str)
 
             # Broadcast updated weights to workers
             if workers_in_round:
@@ -215,7 +242,13 @@ async def run_coordinator(
                         msg_type=MessageType.MODEL_WEIGHTS,
                         sender_id=peer_info.peer_id,
                         payload=new_weights_data,
-                        metadata={"global_step": global_step},
+                        metadata={
+                            "global_step": global_step,
+                            "marketplace_scores": {
+                                s.peer_id: {"weight": s.weight, "rank": s.rank}
+                                for s in rankings
+                            },
+                        },
                     )
                 )
 

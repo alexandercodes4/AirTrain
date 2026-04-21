@@ -28,6 +28,7 @@ class MessageType(IntEnum):
     DREAM_REQUEST = 12
     DREAM_DATA = 13
     DREAM_SYNC = 14
+    MARKETPLACE_SCORES = 15
 
 
 @dataclass

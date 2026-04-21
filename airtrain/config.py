@@ -118,6 +118,19 @@ class DreamConfig(BaseModel):
     share_dreams: bool = True
 
 
+class MarketplaceConfig(BaseModel):
+    """Configuration for Gradient Marketplace — quality-weighted gradient aggregation."""
+
+    enabled: bool = True
+    score_magnitude: float = 0.25
+    score_alignment: float = 0.35
+    score_history: float = 0.25
+    score_improvement: float = 0.15
+    min_weight: float = 0.1
+    history_window: int = 10
+    warmup_rounds: int = 3
+
+
 class AutopsyConfig(BaseModel):
     """Configuration for Model Autopsy reports."""
 
