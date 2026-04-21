@@ -118,6 +118,17 @@ class DreamConfig(BaseModel):
     share_dreams: bool = True
 
 
+class AutopsyConfig(BaseModel):
+    """Configuration for Model Autopsy reports."""
+
+    enabled: bool = True
+    output_dir: str = "./autopsy"
+    output_format: str = "html"
+    track_per_round: bool = True
+    track_dreams: bool = True
+    track_contributors: bool = True
+
+
 class NetworkConfig(BaseModel):
     """Network configuration for peer communication."""
 

@@ -251,6 +251,51 @@
     }
     .navbar__links a:hover { color: var(--silver-bright); }
 
+    /* Features dropdown */
+    .nav-dropdown {
+      position: relative;
+    }
+    .nav-dropdown > a {
+      cursor: default;
+    }
+    .nav-dropdown__menu {
+      position: absolute;
+      top: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%) translateY(8px);
+      min-width: 200px;
+      background: rgba(17, 25, 40, 0.78);
+      backdrop-filter: blur(20px) saturate(130%);
+      -webkit-backdrop-filter: blur(20px) saturate(130%);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 6px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 16px 48px rgba(0,0,0,0.5);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s var(--ease-expo), transform 0.25s var(--ease-expo);
+      z-index: 200;
+    }
+    .nav-dropdown:hover .nav-dropdown__menu {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateX(-50%) translateY(0);
+    }
+    .nav-dropdown__menu a {
+      display: block;
+      padding: 8px 14px;
+      font-size: 0.8125rem;
+      font-weight: 450;
+      color: var(--silver-mid) !important;
+      border-radius: 8px;
+      transition: background 0.15s ease, color 0.15s ease;
+      white-space: nowrap;
+    }
+    .nav-dropdown__menu a:hover {
+      background: rgba(255,255,255,0.08);
+      color: var(--silver-bright) !important;
+    }
+
     .navbar__actions {
       display: flex;
       align-items: center;
@@ -967,6 +1012,78 @@
     }
 
     /* ============================================================
+       MODEL AUTOPSY
+       ============================================================ */
+    .autopsy {
+      padding: 96px 0;
+      background: var(--bg-base);
+    }
+    .autopsy-preview {
+      margin-top: 48px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(var(--glass-blur)) saturate(125%);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      padding: 32px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 8px 32px rgba(0,0,0,0.4);
+    }
+    .autopsy-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    @media (max-width: 640px) {
+      .autopsy-stats { grid-template-columns: repeat(2, 1fr); }
+    }
+    .autopsy-stat {
+      text-align: center;
+      padding: 16px;
+      background: rgba(255,255,255,0.03);
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    .autopsy-stat__val {
+      display: block;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--silver-bright);
+    }
+    .autopsy-stat__label {
+      font-size: 0.6875rem;
+      color: var(--silver-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-top: 4px;
+    }
+    .autopsy-features {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 24px;
+    }
+    @media (max-width: 768px) {
+      .autopsy-features { grid-template-columns: 1fr; }
+    }
+    .autopsy-feature {
+      padding: 16px;
+      background: rgba(255,255,255,0.03);
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+    .autopsy-feature h4 {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--silver-bright);
+      margin-bottom: 6px;
+    }
+    .autopsy-feature p {
+      font-size: 0.8125rem;
+      color: var(--silver-dim);
+      line-height: 1.5;
+    }
+
+    /* ============================================================
        FOOTER
        ============================================================ */
     .footer {
@@ -1013,13 +1130,21 @@
       <span>AirTrain</span>
     </a>
     <ul class="navbar__links">
-      <li><a href="#features">Features</a></li>
+      <li class="nav-dropdown">
+        <a href="#features">Features &#9662;</a>
+        <div class="nav-dropdown__menu">
+          <a href="#features">Zero-Config Discovery</a>
+          <a href="#features">DiLoCo Training</a>
+          <a href="#features">Checkpoint Relay</a>
+          <a href="#sleep-swarms">Sleep Swarms</a>
+          <a href="#dream-training">Dream Training</a>
+          <a href="#autopsy">Model Autopsy</a>
+        </div>
+      </li>
       <li><a href="#how-it-works">How It Works</a></li>
       <li><a href="#algorithm">Algorithm</a></li>
       <li><a href="#performance">Performance</a></li>
       <li><a href="#comparison">Compare</a></li>
-      <li><a href="#sleep-swarms">Sleep Swarms</a></li>
-      <li><a href="#dream-training">Dreams</a></li>
     </ul>
     <div class="navbar__actions">
       <a href="https://x.com/alexandercodes_" target="_blank" rel="noopener" class="navbar__icon-btn" aria-label="X / Twitter">
@@ -1039,13 +1164,21 @@
       <span>AirTrain</span>
     </a>
     <ul class="navbar__links">
-      <li><a href="#features">Features</a></li>
+      <li class="nav-dropdown">
+        <a href="#features">Features &#9662;</a>
+        <div class="nav-dropdown__menu">
+          <a href="#features">Zero-Config Discovery</a>
+          <a href="#features">DiLoCo Training</a>
+          <a href="#features">Checkpoint Relay</a>
+          <a href="#sleep-swarms">Sleep Swarms</a>
+          <a href="#dream-training">Dream Training</a>
+          <a href="#autopsy">Model Autopsy</a>
+        </div>
+      </li>
       <li><a href="#how-it-works">How It Works</a></li>
       <li><a href="#algorithm">Algorithm</a></li>
       <li><a href="#performance">Performance</a></li>
       <li><a href="#comparison">Compare</a></li>
-      <li><a href="#sleep-swarms">Sleep Swarms</a></li>
-      <li><a href="#dream-training">Dreams</a></li>
     </ul>
     <div class="navbar__actions">
       <a href="https://x.com/alexandercodes_" target="_blank" rel="noopener" class="navbar__icon-btn" aria-label="X / Twitter">
@@ -1091,9 +1224,7 @@
         </div>
         <div class="section-label" style="justify-content:center;"><span>See it in action</span></div>
         <div class="demo__embed-wrap" id="tweet-container">
-          <blockquote class="twitter-tweet" data-theme="dark" data-dnt="true" data-conversation="none">
-            <a href="https://x.com/AlexanderCodes_/status/2045251888828895311"></a>
-          </blockquote>
+          <blockquote class="twitter-tweet" data-theme="dark" data-dnt="true" data-conversation="none"><p lang="en" dir="ltr">Just so people have a better idea of the efficiency of AirTrain (It&#39;s pretty awesome 😄): <a href="https://t.co/5ZpGoELVz2">pic.twitter.com/5ZpGoELVz2</a></p>&mdash; Alexander Hayes (@AlexanderCodes_) <a href="https://twitter.com/AlexanderCodes_/status/2045251888828895311?ref_src=twsrc%5Etfw">April 17, 2026</a></blockquote>
         </div>
       </div>
     </div>
@@ -1556,6 +1687,59 @@ v = <span class="op">0.9</span> · v + Δθ_avg
       <p class="dream-quote" data-animate>
         &ldquo;If you can&rsquo;t train, dream.&rdquo; &mdash; When Sleep Swarms can&rsquo;t find a session, your Mac dreams instead. No idle time wasted.
       </p>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       MODEL AUTOPSY
+       ============================================================ -->
+  <section class="autopsy" id="autopsy">
+    <div class="container">
+      <div class="section-label" data-animate><span>Post-Training</span></div>
+      <h2 class="section-heading" data-animate>Model Autopsy</h2>
+      <p style="color: var(--silver-mid); max-width: 640px; margin: 16px auto 0; text-align: center; line-height: 1.6;" data-animate>
+        After training completes, AirTrain generates an interactive report showing the model&rsquo;s entire life story &mdash; every contributor, every breakthrough, every dream.
+      </p>
+
+      <div class="autopsy-preview" data-animate>
+        <div class="autopsy-stats">
+          <div class="autopsy-stat">
+            <span class="autopsy-stat__val">50,000</span>
+            <span class="autopsy-stat__label">Total Steps</span>
+          </div>
+          <div class="autopsy-stat">
+            <span class="autopsy-stat__val">14.2</span>
+            <span class="autopsy-stat__label">Compute Hours</span>
+          </div>
+          <div class="autopsy-stat">
+            <span class="autopsy-stat__val">7</span>
+            <span class="autopsy-stat__label">Contributors</span>
+          </div>
+          <div class="autopsy-stat">
+            <span class="autopsy-stat__val">2.89</span>
+            <span class="autopsy-stat__label">Final Loss</span>
+          </div>
+        </div>
+
+        <div class="autopsy-features">
+          <div class="autopsy-feature">
+            <h4>Loss Curve</h4>
+            <p>Interactive Chart.js visualization of training loss over every sync round</p>
+          </div>
+          <div class="autopsy-feature">
+            <h4>Contributor Rankings</h4>
+            <p>Who contributed the most compute, participated in the most syncs, generated the best dreams</p>
+          </div>
+          <div class="autopsy-feature">
+            <h4>Breakthrough Rounds</h4>
+            <p>The top 5 sync rounds with the biggest loss drops &mdash; and which peers were responsible</p>
+          </div>
+        </div>
+
+        <p style="text-align:center; margin-top: 20px; font-family: var(--font-mono); font-size: 0.8125rem; color: var(--silver-dim);">
+          <code style="background: rgba(255,255,255,0.06); padding: 6px 12px; border-radius: 6px; color: var(--silver-mid);">$ airtrain autopsy --events ./autopsy/events.jsonl</code>
+        </p>
+      </div>
     </div>
   </section>
 

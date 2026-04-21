@@ -393,6 +393,44 @@ When the sleep scheduler can't find a training session to join, it dreams instea
 | `max_cache_mb` | 500 | Max dream cache size before auto-pruning |
 | `dream_interval` | 60 | Seconds between idle dream sessions |
 
+## Model Autopsy
+
+After training completes, AirTrain generates an interactive **autopsy report** — a detailed analysis of the model's entire training life story.
+
+```bash
+airtrain autopsy --events ./autopsy/events.jsonl
+```
+
+This opens a self-contained HTML report in your browser with:
+
+- **Training Summary** — total steps, compute hours, contributors, initial/final loss
+- **Loss Curve** — interactive Chart.js visualization of loss over every sync round
+- **Contributor Rankings** — who contributed the most compute, participated in the most syncs, generated the best dreams
+- **Breakthrough Rounds** — the top 5 sync rounds with the biggest loss drops, and which peers were responsible
+- **Dream Impact** — how many dream samples were generated, kept, and their average quality
+- **Peer Timeline** — when each peer joined, contributed, and left
+
+### How Events Are Recorded
+
+The `AutopsyRecorder` automatically logs events during training:
+- Every sync round (step, loss, participating peers)
+- Peer joins and leaves (hardware info, compute hours contributed)
+- Checkpoints saved
+- Dream sessions (samples generated, quality scores)
+
+Events are stored as JSONL in `autopsy/events.jsonl` — human-readable and portable.
+
+### Sharing Reports
+
+Upload autopsy reports to airtrain.dev to share your model's training story:
+
+```bash
+# Generate JSON format for uploading
+airtrain autopsy --events ./autopsy/events.jsonl --format json --output report.json
+```
+
+Reports are viewable on the website, showing every contributor who helped train the model.
+
 ## Local Dashboard
 
 When you run training with `--dashboard`, AirTrain starts a web UI at `http://localhost:8471`:

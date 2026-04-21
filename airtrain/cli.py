@@ -9,7 +9,7 @@ from pathlib import Path
 import click
 
 from airtrain import __version__
-from airtrain.config import DiLoCoConfig, DreamConfig, NetworkConfig, PeerRole, SleepConfig, TrainingConfig
+from airtrain.config import AutopsyConfig, DiLoCoConfig, DreamConfig, NetworkConfig, PeerRole, SleepConfig, TrainingConfig
 
 
 @click.group()
@@ -225,6 +225,47 @@ def dream_status(dream_dir: str):
     click.echo(f"  Avg quality:    {stats['avg_quality']}")
     click.echo(f"  Cache size:     {stats['cache_size_mb']} MB / {stats['max_cache_mb']} MB")
     click.echo(f"  Dream files:    {stats['dream_files']}")
+
+
+@cli.command()
+@click.option("--events", type=click.Path(exists=True), help="Path to events.jsonl")
+@click.option("--checkpoint", type=click.Path(exists=True), help="Path to checkpoint directory")
+@click.option("--output", default=None, help="Output report path")
+@click.option("--format", "fmt", default="html", type=click.Choice(["html", "json"]), help="Report format")
+@click.option("--model-name", default="", help="Model name for report title")
+def autopsy(events: str | None, checkpoint: str | None, output: str | None, fmt: str, model_name: str):
+    """Generate a Model Autopsy report after training.
+
+    Analyzes the complete training history: contributor rankings,
+    breakthrough rounds, dream impact, and loss curves. Outputs
+    a self-contained HTML report with interactive charts.
+    """
+    from airtrain.engine.autopsy import generate_autopsy
+
+    if not events and not checkpoint:
+        # Try default path
+        events = "./autopsy/events.jsonl"
+        if not Path(events).exists():
+            click.echo("Error: No events file found. Specify --events or --checkpoint.")
+            return
+
+    if checkpoint and not events:
+        events_path = Path(checkpoint) / "autopsy" / "events.jsonl"
+        if events_path.exists():
+            events = str(events_path)
+        else:
+            click.echo(f"Error: No events.jsonl found in {checkpoint}/autopsy/")
+            return
+
+    click.echo("Generating Model Autopsy report...")
+    report_path = generate_autopsy(events, output, model_name, fmt)
+
+    if report_path:
+        click.echo(f"\nReport saved to: {report_path}")
+        if fmt == "html":
+            click.echo("Open in your browser to view the interactive report.")
+    else:
+        click.echo("Error: No events found. Nothing to report.")
 
 
 @cli.group()
