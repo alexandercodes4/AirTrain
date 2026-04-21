@@ -907,6 +907,66 @@
     }
 
     /* ============================================================
+       DREAM TRAINING
+       ============================================================ */
+    .dream-training {
+      padding: 96px 0;
+      background: var(--bg-surface);
+    }
+    .dream-flow {
+      display: flex;
+      gap: 12px;
+      margin-top: 48px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .dream-step {
+      background: var(--glass-bg);
+      backdrop-filter: blur(var(--glass-blur)) saturate(125%);
+      border: 1px solid var(--glass-border);
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+      flex: 1;
+      min-width: 140px;
+      max-width: 180px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 8px 32px rgba(0,0,0,0.4);
+    }
+    .dream-step__icon {
+      font-size: 1.5rem;
+      margin-bottom: 8px;
+      opacity: 0.9;
+    }
+    .dream-step h4 {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: var(--silver-bright);
+      margin-bottom: 4px;
+    }
+    .dream-step p {
+      font-size: 0.75rem;
+      color: var(--silver-dim);
+      line-height: 1.5;
+    }
+    .dream-arrow {
+      display: flex;
+      align-items: center;
+      color: var(--silver-subtle);
+      font-size: 1.25rem;
+    }
+    @media (max-width: 768px) {
+      .dream-arrow { display: none; }
+      .dream-step { max-width: 100%; }
+    }
+    .dream-quote {
+      margin-top: 40px;
+      text-align: center;
+      font-style: italic;
+      color: var(--silver-dim);
+      font-size: 0.9375rem;
+    }
+
+    /* ============================================================
        FOOTER
        ============================================================ */
     .footer {
@@ -959,6 +1019,7 @@
       <li><a href="#performance">Performance</a></li>
       <li><a href="#comparison">Compare</a></li>
       <li><a href="#sleep-swarms">Sleep Swarms</a></li>
+      <li><a href="#dream-training">Dreams</a></li>
     </ul>
     <div class="navbar__actions">
       <a href="https://x.com/alexandercodes_" target="_blank" rel="noopener" class="navbar__icon-btn" aria-label="X / Twitter">
@@ -984,6 +1045,7 @@
       <li><a href="#performance">Performance</a></li>
       <li><a href="#comparison">Compare</a></li>
       <li><a href="#sleep-swarms">Sleep Swarms</a></li>
+      <li><a href="#dream-training">Dreams</a></li>
     </ul>
     <div class="navbar__actions">
       <a href="https://x.com/alexandercodes_" target="_blank" rel="noopener" class="navbar__icon-btn" aria-label="X / Twitter">
@@ -1445,6 +1507,55 @@ v = <span class="op">0.9</span> · v + Δθ_avg
           </p>
         </div>
       </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       DREAM TRAINING
+       ============================================================ -->
+  <section class="dream-training" id="dream-training">
+    <div class="container">
+      <div class="section-label" data-animate><span>New</span></div>
+      <h2 class="section-heading" data-animate>Dream Training</h2>
+      <p style="color: var(--silver-mid); max-width: 640px; margin: 16px auto 0; text-align: center; line-height: 1.6;" data-animate>
+        Your Mac generates synthetic training data during idle time &mdash; running inference on the current model, scoring outputs for quality, and caching the best samples. When training resumes, dream data is mixed into real batches to accelerate convergence.
+      </p>
+
+      <div class="dream-flow" data-animate>
+        <div class="dream-step">
+          <div class="dream-step__icon">&#x1F4AD;</div>
+          <h4>Generate</h4>
+          <p>Model runs inference with temperature sampling</p>
+        </div>
+        <div class="dream-arrow">&rarr;</div>
+        <div class="dream-step">
+          <div class="dream-step__icon">&#x2696;</div>
+          <h4>Score</h4>
+          <p>Perplexity + repetition + diversity filtering</p>
+        </div>
+        <div class="dream-arrow">&rarr;</div>
+        <div class="dream-step">
+          <div class="dream-step__icon">&#x1F4BE;</div>
+          <h4>Cache</h4>
+          <p>High-quality samples saved to dream cache</p>
+        </div>
+        <div class="dream-arrow">&rarr;</div>
+        <div class="dream-step">
+          <div class="dream-step__icon">&#x1F500;</div>
+          <h4>Mix</h4>
+          <p>15% dream + 85% real data in training batches</p>
+        </div>
+        <div class="dream-arrow">&rarr;</div>
+        <div class="dream-step">
+          <div class="dream-step__icon">&#x1F310;</div>
+          <h4>Share</h4>
+          <p>Dreams shared across the swarm</p>
+        </div>
+      </div>
+
+      <p class="dream-quote" data-animate>
+        &ldquo;If you can&rsquo;t train, dream.&rdquo; &mdash; When Sleep Swarms can&rsquo;t find a session, your Mac dreams instead. No idle time wasted.
+      </p>
     </div>
   </section>
 

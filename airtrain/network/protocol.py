@@ -24,6 +24,10 @@ class MessageType(IntEnum):
     MODEL_WEIGHTS = 8
     STATUS = 9
     ACK = 10
+    DREAM_SHARE = 11
+    DREAM_REQUEST = 12
+    DREAM_DATA = 13
+    DREAM_SYNC = 14
 
 
 @dataclass

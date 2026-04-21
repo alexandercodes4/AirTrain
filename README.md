@@ -346,6 +346,53 @@ Sleep Swarms are safe by default:
 - **Auto-checkpoint** — saves progress before every disconnect
 - **Retry logic** — reconnects automatically if Wi-Fi drops
 
+## Dream Training
+
+Your Mac "dreams" about the model during idle time. Between training sessions, AirTrain runs low-priority inference to generate synthetic training data from the current checkpoint — scoring each sample for quality and caching the best ones. When training resumes, dream data is mixed into real batches to accelerate convergence.
+
+Inspired by how the brain consolidates learning during sleep through replay.
+
+```bash
+# Generate dreams manually from a checkpoint
+airtrain dream run --samples 1000 --temperature 0.9
+
+# Check dream cache stats
+airtrain dream status
+```
+
+### How It Works
+
+1. **Generate** — The model runs inference with temperature sampling to produce diverse text
+2. **Score** — Each sample is evaluated on a quality heuristic (perplexity sweet spot, repetition, diversity)
+3. **Cache** — High-quality samples are saved to `dreams/` as JSONL files
+4. **Mix** — During training, dream data is mixed into real batches (default 15% dream, 85% real)
+5. **Share** — Dream caches are shared across the swarm, so every worker benefits from every other worker's dreams
+
+### Quality Scoring
+
+Not all dreams are useful. AirTrain filters aggressively:
+- **Too low perplexity** (memorized/repetitive) — rejected
+- **Too high perplexity** (gibberish/incoherent) — rejected
+- **Sweet spot** (novel but coherent) — kept
+- **N-gram repetition** check catches degenerate loops
+- **Character diversity** check catches punctuation spam
+
+### Integration with Sleep Swarms
+
+When the sleep scheduler can't find a training session to join, it dreams instead: *"If you can't train, dream."* These dreams are cached locally and shared when the next session starts, so no idle time is wasted.
+
+### Configuration
+
+| Parameter | Default | Description |
+|---|---|---|
+| `samples_per_session` | 1000 | Samples generated per dream session |
+| `temperature` | 0.9 | Sampling temperature (higher = more diverse) |
+| `top_p` | 0.95 | Nucleus sampling threshold |
+| `quality_threshold` | 0.7 | Min quality score to keep (0-1) |
+| `mix_ratio` | 0.15 | Fraction of dream data in training batches |
+| `max_cache_mb` | 500 | Max dream cache size before auto-pruning |
+| `dream_interval` | 60 | Seconds between idle dream sessions |
+
 ## Local Dashboard
 
 When you run training with `--dashboard`, AirTrain starts a web UI at `http://localhost:8471`:

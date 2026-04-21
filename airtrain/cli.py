@@ -9,7 +9,7 @@ from pathlib import Path
 import click
 
 from airtrain import __version__
-from airtrain.config import DiLoCoConfig, NetworkConfig, PeerRole, SleepConfig, TrainingConfig
+from airtrain.config import DiLoCoConfig, DreamConfig, NetworkConfig, PeerRole, SleepConfig, TrainingConfig
 
 
 @click.group()
@@ -176,6 +176,55 @@ def sleep(window: str, prefer: str, max_hours: float, min_battery: int, relay_ur
     click.echo("Press Ctrl+C to stop.\n")
 
     asyncio.run(run_sleep_scheduler(config))
+
+
+@cli.group()
+def dream():
+    """Generate and manage dream training data."""
+    pass
+
+
+@dream.command("run")
+@click.option("--checkpoint", type=click.Path(exists=True), help="Model checkpoint to dream from")
+@click.option("--samples", default=1000, help="Number of samples to generate")
+@click.option("--temperature", default=0.9, help="Sampling temperature")
+@click.option("--dream-dir", default="./dreams", help="Dream cache directory")
+def dream_run(checkpoint: str | None, samples: int, temperature: float, dream_dir: str):
+    """Run a dream session to generate synthetic training data."""
+    from airtrain.engine.dream import DreamSession
+
+    config = DreamConfig(
+        samples_per_session=samples,
+        temperature=temperature,
+        dream_dir=dream_dir,
+    )
+    session = DreamSession(config)
+    stats = session.run(num_samples=samples)
+
+    click.echo(f"\nDream session complete:")
+    click.echo(f"  Generated:    {stats['generated']}")
+    click.echo(f"  Kept:         {stats['kept']}")
+    click.echo(f"  Rejected:     {stats['rejected']}")
+    click.echo(f"  Avg quality:  {stats['avg_quality']}")
+    click.echo(f"  Time:         {stats['elapsed_seconds']}s")
+    click.echo(f"  Cache total:  {stats['cache_total']} samples ({stats['cache_size_mb']} MB)")
+
+
+@dream.command("status")
+@click.option("--dream-dir", default="./dreams", help="Dream cache directory")
+def dream_status(dream_dir: str):
+    """Show dream cache statistics."""
+    from airtrain.engine.dream import DreamCache
+
+    config = DreamConfig(dream_dir=dream_dir)
+    cache = DreamCache(config)
+    stats = cache.get_stats()
+
+    click.echo("Dream Cache Stats:")
+    click.echo(f"  Total samples:  {stats['total_samples']}")
+    click.echo(f"  Avg quality:    {stats['avg_quality']}")
+    click.echo(f"  Cache size:     {stats['cache_size_mb']} MB / {stats['max_cache_mb']} MB")
+    click.echo(f"  Dream files:    {stats['dream_files']}")
 
 
 @cli.group()

@@ -186,6 +186,29 @@ class SleepScheduler:
         except Exception as e:
             logger.debug(f"Failed to register availability: {e}")
 
+    async def _dream_while_idle(self) -> None:
+        """Run dream sessions when no training sessions are available.
+
+        'If you can't train, dream.' Generates synthetic data from the
+        last known model checkpoint and caches it for future sessions.
+        """
+        try:
+            from airtrain.config import DreamConfig
+            from airtrain.engine.dream import DreamSession
+
+            dream_config = DreamConfig(samples_per_session=200)
+            session = DreamSession(dream_config, peer_id=self.config.timezone)
+            stats = session.run(num_samples=200)
+            logger.info(
+                f"Dream session: {stats['kept']} samples cached "
+                f"(avg quality {stats['avg_quality']})"
+            )
+        except Exception as e:
+            logger.debug(f"Dream session failed: {e}")
+
+        # Wait before retrying session search
+        await asyncio.sleep(300)
+
     def _should_stop(self) -> tuple[bool, str]:
         """Check if we should stop training. Returns (should_stop, reason)."""
         if not is_within_window(self.config):
@@ -259,8 +282,8 @@ class SleepScheduler:
 
             session = await self.find_session()
             if not session:
-                logger.info("No sessions found. Retrying in 5 minutes...")
-                await asyncio.sleep(300)
+                logger.info("No sessions found. Dreaming instead...")
+                await self._dream_while_idle()
                 continue
 
             self.session = session

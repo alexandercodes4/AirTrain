@@ -101,6 +101,23 @@ class SleepConfig(BaseModel):
     max_retries: int = 3
 
 
+class DreamConfig(BaseModel):
+    """Configuration for Dream Training — synthetic data generation during idle time."""
+
+    enabled: bool = True
+    samples_per_session: int = 1000
+    min_length: int = 64
+    max_length: int = 512
+    temperature: float = 0.9
+    top_p: float = 0.95
+    quality_threshold: float = 0.7
+    mix_ratio: float = 0.15
+    dream_dir: str = "./dreams"
+    max_cache_mb: int = 500
+    dream_interval: int = 60
+    share_dreams: bool = True
+
+
 class NetworkConfig(BaseModel):
     """Network configuration for peer communication."""
 
